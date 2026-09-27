@@ -7,7 +7,7 @@ to write the measuring code, and streams every step to the 3D front end (docs/EV
     GET  /api/cases/{case_id}/events  the same events as JSON (tests, debugging)
     GET  /api/cases/{case_id}/photo   the sanitized photo (waits until the sandbox has made it)
     GET  /api/cases/{case_id}/files/{path}   room.glb, depth.png, frames/... proxied from the runner
-    GET  /start                       upload page;  /  the front end (frontend/dist)
+    GET  /start                       upload page;  /capture  guided phone recorder;  /  the front end (frontend/dist)
 
 The survivor's upload is stored and forwarded, never opened here. The model and the browser
 only ever see the re-encoded photo.jpg made inside the no-network sandbox.
@@ -272,6 +272,12 @@ async def scan_page(name: str) -> FileResponse:
 @app.get("/start")
 async def start_page() -> FileResponse:
     return FileResponse(STATIC / "start.html")
+
+
+@app.get("/capture")
+async def capture_page() -> FileResponse:
+    """Guided walkthrough recorder for a phone. Uploads to /api/cases just as /start does."""
+    return FileResponse(STATIC / "capture.html")
 
 
 @app.get("/api/health")
