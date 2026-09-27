@@ -6,7 +6,7 @@ Main repository: https://github.com/techadnank9/shltr
 
 ## What we're building
 
-Shltr helps storm and flood survivors. A survivor uploads photos of a damaged room. An agent on Vultr turns them into a 3D model of the room, finds and prices the damage, and fills in the aid application. Every risky step runs in a throwaway sandbox on Vultr, and nothing is submitted until the survivor approves it. The containment moment is a fake aid website (the kind scammers set up after every disaster) that tries prompt injection, a forced download and data theft, and the sandbox holds.
+Shltr helps storm and flood survivors. A survivor uploads photos of a damaged room. An agent on Vultr turns them into a 3D model of the room, finds and prices the damage, and fills in the aid application. Every risky step runs in a throwaway sandbox on Vultr, and nothing is submitted until the survivor approves it. The containment moment is a fake aid website (the kind scammers set up after every disaster) that tries a forced malware download and data theft, and the sandbox holds.
 
 Hackathon: Vultr Agent Arena 2026, track "Blast Radius Zero". Submissions are due **Sunday September 27, 12:00 PM PT**.
 
@@ -54,5 +54,5 @@ Folders are created by whoever starts that workstream.
 - Model: `glm-5.3` on Vultr Serverless Inference (`https://api.vultrinference.com/v1`, OpenAI-compatible), fallback `qwen3.8-27b`.
 - Control plane: Python, FastAPI, SQLite, WebSocket.
 - Photo sandbox: Microsandbox microVM on a Vultr VX1, Depth Anything V2 (metric indoor), trimesh.
-- Browser sandbox: Playwright in Docker with the gVisor runtime (`--runtime=runsc`).
+- Browser sandbox: Chromium + Playwright in a Microsandbox microVM with a private-network allowlist (D26).
 - Front end: React, three.js (React Three Fiber), Vite. Blender for polished assets.

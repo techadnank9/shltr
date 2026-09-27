@@ -38,7 +38,7 @@ MAX_UPLOAD = 100 * 1024 * 1024
 MEDIA_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".mp4", ".mov", ".m4v", ".webm"}
 CASE_ID = re.compile(r"^c_[a-z0-9]{8}$")
 JOB_ID = re.compile(r"^[a-z0-9]{12}$")
-SHOT_PATH = re.compile(r"^shots/\d{2}-[a-z]+\.png$")
+SHOT_PATH = re.compile(r"^(shots/\d{2}-[a-z]+\.png|report\.pdf)$")
 # Our demo sites on VM 1's private address. Lookalike domains are mapped to it inside the browser
 # sandbox, so the address bar shows the realistic name while nothing leaves our network.
 SITES_TARGET = os.environ.get("SITES_TARGET", "10.40.0.3:8080")
@@ -202,7 +202,19 @@ async def job_file(case_id: str, job_id: str, path: str) -> Response:
         r = await client.get(f"{RUNNER}/jobs/{job_id}/files/{path}", headers=RUNNER_AUTH)
     if r.status_code != 200:
         raise HTTPException(status_code=404)
-    return Response(r.content, media_type="image/png", headers={"X-Content-Type-Options": "nosniff"})
+    kind = "application/pdf" if path.endswith(".pdf") else "image/png"
+    headers = {"X-Content-Type-Options": "nosniff"}
+    if kind == "application/pdf":
+        headers["Content-Disposition"] = f'inline; filename="shltr-{case_id}-damage-report.pdf"'
+    return Response(r.content, media_type=kind, headers=headers)
+
+
+@app.post("/api/cases/{case_id}/report")
+async def report_api(case_id: str) -> dict:
+    """(Re)build the Damage Evidence Report, for example after a link check added security events."""
+    case = get_case(case_id)
+    asyncio.create_task(generate_report(case))
+    return {"ok": True}
 
 
 @app.get("/start")
@@ -286,9 +298,49 @@ async def run_case(case: Case, upload: Path) -> None:
             await asyncio.sleep(0.6)  # pace the markers so the scene can follow them
         case.emit("estimate.total", cost_usd=round(float(result["total_usd"])), range_pct=25)
         case.log(f"case assessed in {time.time() - started:.0f} s")
+        case.room_summary = assessment.get("room", "")
+        await generate_report(case)
     except Exception as err:  # noqa: BLE001 - every failure must reach the survivor's screen
         case.photo_ready.set()
         case.emit("case.error", message=f"Something went wrong on our side: {err}"[:300])
+
+
+async def generate_report(case: Case) -> None:
+    """Build the Damage Evidence Report PDF in a fresh no-network microVM from the case so far."""
+    try:
+        if not case.recon_job:
+            return
+        evs = case.events
+        total = next((e["data"] for e in reversed(evs) if e["type"] == "estimate.total"), {})
+        data = {
+            "case_id": case.id, "title": case.title, "model": agent.MODEL,
+            "created": next((e["ts"] for e in evs if e["type"] == "case.created"), ""),
+            "damages": [{k: e["data"].get(k) for k in ("label", "metric", "cost_usd")} for e in evs if e["type"] == "damage.found"],
+            "total_usd": total.get("cost_usd", 0), "range_pct": total.get("range_pct", 25),
+            "threats": [dict(t) for t in dict.fromkeys(  # each distinct attack once, in order
+                tuple((k, e["data"].get(k)) for k in ("kind", "detail")) for e in evs
+                if e["type"] == "threat.contained" and e["data"].get("kind") != "prompt_injection")],
+            "sandboxes": sorted({e["data"]["sandbox_id"] for e in evs if e["type"] == "sandbox.started"}),
+            "room_summary": getattr(case, "room_summary", ""),
+        }
+        case.log("building the Damage Evidence Report in a new microVM")
+        meta, job = None, None
+        async for ev in runner_stream("/jobs/report", data={"data": json.dumps(data), "from_job": case.recon_job}):
+            t, d = ev["type"], ev["data"]
+            job = ev["job_id"]
+            if t == "report.result":
+                meta = d.get("meta")
+            else:
+                case.emit(t, **d)
+        if not meta:
+            case.emit("case.error", message="The PDF report could not be built. The case itself is complete.")
+            return
+        case.jobs.add(job)
+        save_meta(case)
+        case.emit("report.ready", pdf_url=f"/api/cases/{case.id}/jobs/{job}/files/report.pdf",
+                  pages=meta.get("pages"), bytes=meta.get("bytes"), sha256=meta.get("sha256"), evidence=meta.get("evidence", {}))
+    except Exception as err:  # noqa: BLE001
+        case.emit("case.error", message=f"The PDF report failed on our side: {err}"[:300])
 
 
 async def check_link(case: Case, url: str) -> None:
@@ -318,9 +370,6 @@ async def check_link(case: Case, url: str) -> None:
         case.jobs.add(job)
         save_meta(case)
         sid = f"sbx-{job}"
-        for h in report.get("hidden_text", []):
-            case.emit("threat.contained", sandbox_id=sid, kind="prompt_injection",
-                      detail=f"Hidden text ({', '.join(h.get('reasons', []))}): \"{h.get('text', '')[:160]}\" · treated as data, never as instructions")
         for dl in report.get("downloads", []):
             case.emit("threat.contained", sandbox_id=sid, kind="download",
                       detail=f"{dl.get('name')} ({dl.get('bytes', '?')} bytes) was captured inside the sandbox and destroyed with it; it never reached your phone")
@@ -335,7 +384,7 @@ async def check_link(case: Case, url: str) -> None:
         shot_url = f"/api/cases/{case.id}/jobs/{job}/files/{shot}" if shot else None
         verdict = {"verdict": "unsure", "reasons": [], "advice": ""}
         if shot:
-            case.log(f"{agent.MODEL} · judging the page from its screenshot (page text passed as untrusted data)")
+            case.log(f"{agent.MODEL} · judging the page from its screenshot and what it tried to do")
             async with httpx.AsyncClient(timeout=30) as client:
                 r = await client.get(f"{RUNNER}/jobs/{job}/files/{shot}", headers=RUNNER_AUTH)
             verdict = await agent.judge_link(r.content, target, report)
