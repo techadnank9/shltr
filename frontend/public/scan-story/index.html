@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Flood Story</title>
+<style>
+  :root{
+    --bg:#0b1216; --panel:rgba(14,24,29,.88); --ink:#e6ecee; --soft:#8fa3aa;
+    --line:#22343c; --amber:#f2a33a;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);overflow:hidden;
+    font:14px/1.5 ui-sans-serif,-apple-system,"Segoe UI",Inter,system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  canvas{display:block}
+  #stage{position:fixed;inset:0;
+    background:radial-gradient(120% 90% at 50% 40%,#13222a,var(--bg) 70%)}
+  .panel{position:fixed;background:var(--panel);border:1px solid var(--line);
+    border-radius:10px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:12}
+  #cap{left:50%;transform:translateX(-50%);bottom:74px;width:min(620px,calc(100vw - 32px));
+    padding:15px 18px;text-align:center;transition:opacity .45s}
+  #cap .step{font:11px ui-monospace,Menlo,monospace;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--amber);margin-bottom:5px}
+  #cap h2{margin:0 0 5px;font-size:19px;font-weight:620;letter-spacing:-.01em}
+  #cap p{margin:0;color:var(--soft);font-size:13.5px}
+  #bar{left:50%;transform:translateX(-50%);bottom:16px;padding:8px 10px;
+    display:flex;align-items:center;gap:8px;width:min(620px,calc(100vw - 32px))}
+  #bar button{background:transparent;color:var(--ink);border:1px solid var(--line);
+    border-radius:7px;padding:6px 12px;font:inherit;font-size:12px;cursor:pointer;transition:.15s;flex:none}
+  #bar button:hover{border-color:var(--amber);color:var(--amber)}
+  #track{flex:1;height:4px;background:var(--line);border-radius:2px;overflow:hidden;cursor:pointer}
+  #fill{height:100%;width:0;background:var(--amber)}
+  #dots{display:flex;gap:5px;flex:none}
+  #dots i{width:7px;height:7px;border-radius:50%;background:var(--line);cursor:pointer;transition:.2s}
+  #dots i.on{background:var(--amber);transform:scale(1.25)}
+  #meta{left:16px;top:16px;padding:13px 15px;width:212px;max-width:calc(100vw - 32px)}
+  #meta h1{font-size:13px;margin:0 0 9px;font-weight:620}
+  .r{display:flex;justify-content:space-between;font-size:12px;padding:3.5px 0}
+  .r span{color:var(--soft)} .r b{font-variant-numeric:tabular-nums;font-weight:600}
+  #tally{right:16px;top:16px;padding:13px 15px;width:212px;max-width:calc(100vw - 32px);
+    opacity:0;transition:opacity .5s}
+  #tally.show{opacity:1}
+  #tally h2{font:11px ui-monospace,Menlo,monospace;letter-spacing:.09em;text-transform:uppercase;
+    color:var(--soft);margin:0 0 9px;font-weight:600}
+  #sum{font-size:25px;font-weight:650;color:var(--amber);font-variant-numeric:tabular-nums;
+    letter-spacing:-.02em;line-height:1.1}
+  #sumcap{font-size:11.5px;color:var(--soft);margin:3px 0 10px}
+  .mk{position:fixed;z-index:8;pointer-events:none;transform:translate(-50%,-50%);
+    opacity:0;transition:opacity .4s}
+  .mk.on{opacity:1}
+  .mk .d{width:9px;height:9px;border-radius:50%;background:var(--amber);
+    box-shadow:0 0 0 4px rgba(242,163,58,.22);margin:0 auto}
+  .mk .l{margin-top:6px;background:rgba(11,18,22,.9);border:1px solid var(--line);
+    border-radius:6px;padding:3px 7px;font:11px ui-monospace,Menlo,monospace;
+    color:var(--ink);white-space:nowrap;transform:translateX(-50%);margin-left:4.5px}
+  .mk .l b{color:var(--amber);font-weight:600}
+  #load{position:fixed;inset:0;display:grid;place-items:center;background:var(--bg);z-index:50;
+    transition:opacity .4s;font-size:13.5px;color:var(--soft)}
+  #load.gone{opacity:0;pointer-events:none}
+  #err{left:50%;top:50%;transform:translate(-50%,-50%);max-width:420px;padding:20px;
+    display:none;z-index:60;font-size:13.5px}
+  #link{position:fixed;left:16px;bottom:16px;z-index:12;font:11px ui-monospace,Menlo,monospace;
+    color:var(--soft);text-decoration:none}
+  #link:hover{color:var(--amber)}
+  @media(max-width:880px){
+    #meta,#tally{width:calc(50vw - 24px);max-width:200px}
+    #cap{bottom:70px} #link{display:none}
+  }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="load">loading scan…</div>
+<div id="err" class="panel"></div>
+
+<div id="meta" class="panel">
+  <h1>Survivor's scan</h1>
+  <div class="r"><span>Footprint</span><b id="fp">–</b></div>
+  <div class="r"><span>Triangles</span><b id="tri">–</b></div>
+  <div class="r"><span>Water</span><b id="wd">0.00 m</b></div>
+  <div class="r"><span>Peak line</span><b id="pk">–</b></div>
+</div>
+
+<div id="tally" class="panel">
+  <h2>Assembled loss</h2>
+  <div id="sum">$0</div>
+  <p id="sumcap">counting…</p>
+  <div class="r"><span>Flooded area</span><b id="ar">0 m&sup2;</b></div>
+  <div class="r"><span>Wall line</span><b id="wl">0 m</b></div>
+  <div class="r"><span>Items found</span><b id="it">0</b></div>
+</div>
+
+<div id="cap" class="panel">
+  <div class="step" id="stp">Step 1 of 6</div>
+  <h2 id="ttl">The survivor sends a scan</h2>
+  <p id="txt">One walk through the room with a phone.</p>
+</div>
+
+<div id="bar" class="panel">
+  <button id="play">Pause</button>
+  <button id="again">Restart</button>
+  <div id="track"><div id="fill"></div></div>
+  <div id="dots"></div>
+</div>
+
+<a id="link" href="../scan-demo/">free-look version &rarr;</a>
+
+<script type="importmap">
+{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+
+const $=id=>document.getElementById(id);
+const fail=m=>{const e=$('err');e.style.display='block';e.textContent=m;$('load').classList.add('gone');};
+
+const scene=new THREE.Scene();
+scene.fog=new THREE.Fog(0x0b1216,34,140);
+const camera=new THREE.PerspectiveCamera(50,innerWidth/innerHeight,0.05,600);
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+$('stage').appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xffffff,0x33404a,2.0));
+const key=new THREE.DirectionalLight(0xffffff,1.4); key.position.set(4,9,5); scene.add(key);
+
+const U={water:{value:-1e9}, peak:{value:-1e9}, stain:{value:1.0}};
+let water=null, floorY=0, ctr=new THREE.Vector3(), footX=1, footZ=1, R=10, ready=false;
+
+function hookStain(mat){
+  mat.onBeforeCompile=sh=>{
+    sh.uniforms.uWater=U.water; sh.uniforms.uPeak=U.peak; sh.uniforms.uStain=U.stain;
+    sh.vertexShader=sh.vertexShader
+      .replace('#include <common>','#include <common>\nvarying float vWY;')
+      .replace('#include <begin_vertex>','#include <begin_vertex>\nvWY=(modelMatrix*vec4(transformed,1.0)).y;');
+    sh.fragmentShader=sh.fragmentShader
+      .replace('#include <common>','#include <common>\nvarying float vWY;\nuniform float uWater;\nuniform float uPeak;\nuniform float uStain;')
+      .replace('#include <dithering_fragment>',`
+        #include <dithering_fragment>
+        if(uStain>0.5){
+          float band=1.0-smoothstep(0.0,0.14,abs(vWY-uPeak));
+          gl_FragColor.rgb=mix(gl_FragColor.rgb,vec3(0.24,0.18,0.11),band*0.85);
+          float below=1.0-smoothstep(-0.04,0.04,vWY-uPeak);
+          gl_FragColor.rgb=mix(gl_FragColor.rgb,gl_FragColor.rgb*vec3(0.60,0.56,0.44),below*0.68);
+        }
+        float d=uWater-vWY;
+        if(d>0.0){
+          float t=clamp(d/1.5,0.0,1.0);
+          gl_FragColor.rgb=mix(gl_FragColor.rgb,vec3(0.20,0.19,0.12),0.26+0.46*t);
+        }
+      `);
+  };
+  mat.needsUpdate=true;
+}
+
+const ITEMS=[
+  {x:-.26,y:.10,z:-.30,n:'Sofa, 3-seat',  v:980},
+  {x: .22,y:.06,z:-.12,n:'Rug',           v:340},
+  {x: .34,y:.20,z: .16,n:'Media unit',    v:610},
+  {x:-.34,y:.05,z: .22,n:'Flooring, oak', v:2150},
+  {x: .04,y:.30,z:-.40,n:'Drywall cut',   v:1490},
+  {x:-.10,y:.02,z: .06,n:'Skirting run',  v:420},
+];
+const marks=[];
+function buildMarks(){
+  ITEMS.forEach(it=>{
+    const el=document.createElement('div'); el.className='mk';
+    el.innerHTML=`<div class="d"></div><div class="l">${it.n} &nbsp;<b>$${it.v.toLocaleString()}</b></div>`;
+    document.body.appendChild(el);
+    marks.push({el,pos:new THREE.Vector3(ctr.x+it.x*footX, floorY+it.y*3.0, ctr.z+it.z*footZ)});
+  });
+}
+
+new GLTFLoader().load('../scan-demo/scan.glb', gltf=>{
+  const model=gltf.scene;
+  model.traverse(o=>{
+    if(!o.isMesh) return;
+    if(!o.geometry.attributes.normal) o.geometry.computeVertexNormals();
+    o.material.side=THREE.DoubleSide;
+    hookStain(o.material);
+  });
+  scene.add(model);
+
+  const box=new THREE.Box3().setFromObject(model);
+  const size=box.getSize(new THREE.Vector3());
+  ctr=box.getCenter(new THREE.Vector3());
+  floorY=box.min.y; footX=size.x; footZ=size.z;
+  R=Math.max(size.x,size.z,size.y);
+
+  let tris=0; model.traverse(o=>{if(o.isMesh&&o.geometry.index) tris+=o.geometry.index.count/3;});
+  $('fp').textContent=`${size.x.toFixed(1)} × ${size.z.toFixed(1)} m`;
+  $('tri').textContent=Math.round(tris).toLocaleString();
+
+  const g=new THREE.PlaneGeometry(size.x*1.02,size.z*1.02); g.rotateX(-Math.PI/2);
+  water=new THREE.Mesh(g,new THREE.MeshPhysicalMaterial({
+    color:0x6d6344, transparent:true, opacity:0.52, roughness:0.14,
+    metalness:0.0, transmission:0.72, thickness:0.5, ior:1.33, side:THREE.DoubleSide}));
+  water.position.set(ctr.x,floorY,ctr.z); water.visible=false; scene.add(water);
+
+  buildMarks();
+  ready=true;
+  $('load').classList.add('gone');
+}, xhr=>{ if(xhr.total) $('load').textContent=`loading scan… ${Math.round(xhr.loaded/xhr.total*100)}%`; },
+   e=>fail('Could not load the scan — '+(e&&e.message?e.message:'unknown error')));
+
+const STEPS=[
+  {t:5.0, ttl:'The survivor sends a scan', txt:'One walk through the room with a phone. 272,167 triangles, measured in metres.',
+   cam:{az:0.6,el:0.42,dist:1.35}, depth:0,    marks:0, tally:false},
+  {t:6.5, ttl:'The water comes up',        txt:'The flood rises through the room. Everything it touches is a loss to prove.',
+   cam:{az:1.5,el:0.24,dist:1.05}, depth:1.35, marks:0, tally:false},
+  {t:4.5, ttl:'It leaves a line',          txt:'The water drops, but the mud line stays on the wall. That line is the evidence.',
+   cam:{az:2.3,el:0.06,dist:0.52}, depth:0.35, marks:0, tally:false},
+  {t:6.0, ttl:'The agent reads the room',  txt:'Every surface below the line is measured against the scan geometry.',
+   cam:{az:3.3,el:0.30,dist:0.95}, depth:0.35, marks:6, tally:false},
+  {t:5.5, ttl:'The loss is assembled',     txt:'Areas, wall runs and contents are totalled from the scan, not from a guess.',
+   cam:{az:4.2,el:0.46,dist:1.20}, depth:0.35, marks:6, tally:true},
+  {t:5.0, ttl:'Ready for the claim',       txt:'This is what goes into the aid application — after the survivor approves it.',
+   cam:{az:5.3,el:0.55,dist:1.45}, depth:0.35, marks:6, tally:true},
+];
+const TOTAL=STEPS.reduce((a,s)=>a+s.t,0);
+const STARTS=[]; STEPS.reduce((a,s,i)=>{STARTS[i]=a; return a+s.t;},0);
+
+STEPS.forEach((s,i)=>{
+  const d=document.createElement('i'); d.title=s.ttl;
+  d.addEventListener('click',()=>{clock=STARTS[i]+0.01; U.peak.value=-1e9; lastIdx=-1; apply(true);});
+  $('dots').appendChild(d);
+});
+
+let clock=0, playing=true, lastIdx=-1;
+const ease=t=>t<0.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+const lerp=(a,b,t)=>a+(b-a)*t;
+function stepAt(c){let i=0; while(i<STEPS.length-1 && c>=STARTS[i]+STEPS[i].t) i++; return i;}
+
+function apply(jump){
+  const i=stepAt(clock);
+  const s=STEPS[i], prev=STEPS[Math.max(0,i-1)];
+  const local=Math.min(1,(clock-STARTS[i])/s.t);
+  const e=ease(local);
+
+  if(i!==lastIdx){
+    $('stp').textContent=`Step ${i+1} of ${STEPS.length}`;
+    $('ttl').textContent=s.ttl; $('txt').textContent=s.txt;
+    $('cap').style.opacity=0; setTimeout(()=>{$('cap').style.opacity=1;},120);
+    [...$('dots').children].forEach((d,k)=>d.classList.toggle('on',k===i));
+    lastIdx=i;
+  }
+
+  const d0=(i===0?0:prev.depth), d1=s.depth;
+  const depth=jump?d1:lerp(d0,d1,e);
+  U.water.value=floorY+depth;
+  if(floorY+depth>U.peak.value) U.peak.value=floorY+depth;
+  if(water){water.position.y=floorY+depth; water.visible=depth>0.004;}
+  $('wd').textContent=depth.toFixed(2)+' m';
+  $('pk').textContent=U.peak.value<-1e8?'–':(U.peak.value-floorY).toFixed(2)+' m';
+
+  const c0=(i===0?s.cam:prev.cam), c1=s.cam;
+  const az=jump?c1.az:lerp(c0.az,c1.az,e);
+  const el=jump?c1.el:lerp(c0.el,c1.el,e);
+  const di=jump?c1.dist:lerp(c0.dist,c1.dist,e);
+  const rad=R*di;
+  camera.position.set(
+    ctr.x+Math.cos(az)*Math.cos(el)*rad,
+    floorY+0.9+Math.sin(el)*rad*0.9,
+    ctr.z+Math.sin(az)*Math.cos(el)*rad);
+  camera.lookAt(ctr.x,floorY+1.1,ctr.z);
+
+  const want=jump?s.marks:Math.round(lerp(prev.marks||0,s.marks,e));
+  marks.forEach((m,k)=>m.el.classList.toggle('on',k<want));
+
+  $('tally').classList.toggle('show',s.tally);
+  if(s.tally){
+    const p=jump?1:(i===4?e:1);
+    const area=footX*footZ, perim=2*(footX+footZ);
+    const base=ITEMS.reduce((a,x)=>a+x.v,0)+area*34+perim*1.65*46;
+    $('sum').textContent='$'+(Math.round(base*p/10)*10).toLocaleString();
+    $('sumcap').textContent='from the scan geometry';
+    $('ar').textContent=area.toFixed(0)+' m²';
+    $('wl').textContent=perim.toFixed(0)+' m';
+    $('it').textContent=String(Math.round(ITEMS.length*p));
+  }
+  $('fill').style.width=(clock/TOTAL*100).toFixed(1)+'%';
+}
+
+$('play').addEventListener('click',e=>{playing=!playing;e.target.textContent=playing?'Pause':'Play';});
+$('again').addEventListener('click',()=>{clock=0;U.peak.value=-1e9;lastIdx=-1;playing=true;$('play').textContent='Pause';apply(true);});
+$('track').addEventListener('click',e=>{
+  const r=e.currentTarget.getBoundingClientRect();
+  clock=Math.max(0,Math.min(TOTAL-0.05,(e.clientX-r.left)/r.width*TOTAL));
+  U.peak.value=-1e9; lastIdx=-1; apply(true);
+});
+
+addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+
+const v=new THREE.Vector3();
+let t=0, last=performance.now();
+renderer.setAnimationLoop(now=>{
+  const dt=Math.min(0.05,(now-last)/1000); last=now; t+=dt;
+  if(ready){
+    if(playing){ clock+=dt; if(clock>=TOTAL){clock=TOTAL-0.001; playing=false; $('play').textContent='Play';} }
+    apply(false);
+    if(water&&water.visible){
+      water.material.opacity=0.50+Math.sin(t*2.0)*0.035;
+      water.position.y+=Math.sin(t*1.6)*0.0006;
+    }
+    marks.forEach(m=>{
+      v.copy(m.pos).project(camera);
+      const on=v.z<1 && m.el.classList.contains('on');
+      m.el.style.display=on?'block':'none';
+      if(on){
+        m.el.style.left=((v.x*0.5+0.5)*innerWidth)+'px';
+        m.el.style.top=((-v.y*0.5+0.5)*innerHeight)+'px';
+      }
+    });
+  }
+  renderer.render(scene,camera);
+});
+</script>
+</body>
+</html>
