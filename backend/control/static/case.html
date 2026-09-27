@@ -120,7 +120,7 @@
   #approve-bar { margin-top: 12px; display: none; align-items: center; gap: 12px; padding: 12px 14px; background: var(--glass2); border: 1px solid var(--amber); border-radius: 8px; box-shadow: 0 0 40px rgba(242,163,58,.25); }
   #approve-bar.on { display: flex; }
   #approve-bar div { flex: 1; font-weight: 600; }
-  #edit { position: absolute; left: calc(100% + 14px); top: 0; width: 290px; max-height: 100%; overflow: auto; display: none; padding: 12px 14px; background: var(--glass2); border: 1px solid var(--amber); border-radius: 8px; box-shadow: 0 0 40px rgba(242,163,58,.2); }
+  #edit { position: absolute; left: calc(100% + 14px); top: 0; width: 290px; max-height: 100%; overflow: auto; display: none; padding: 12px 14px; background: rgba(12,22,27,.97); border: 1px solid var(--amber); border-radius: 8px; box-shadow: 0 0 40px rgba(242,163,58,.2); }
   #edit.on { display: block; }
   #edit h4 { margin: 0 0 2px; font: 11px var(--mono); letter-spacing: .14em; color: var(--amber); }
   #edit p { margin: 0 0 10px; font-size: 12px; color: var(--muted); }
@@ -128,7 +128,7 @@
   #edit input { width: 100%; box-sizing: border-box; margin-top: 3px; font: 13px "IBM Plex Sans", system-ui, sans-serif; color: var(--text); background: rgba(0,0,0,.35); border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; }
   #edit input:focus-visible { outline: 2px solid var(--amber); outline-offset: 1px; }
   #edit input.changed { border-color: var(--amber); color: var(--amber); }
-  @media (max-width: 1400px) { #edit { left: auto; right: 0; top: auto; bottom: calc(100% + 10px); width: 100%; max-height: 40vh; } }
+  @media (max-width: 1400px) { #edit { left: auto; right: calc(100% + 14px); width: min(290px, calc(50vw - 50% - 28px)); z-index: 5; } }
   #receipt { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(.9); opacity: 0; pointer-events: none; text-align: center; transition: all .6s cubic-bezier(.2,1.6,.4,1); background: var(--glass2); border: 1px solid var(--ok); border-radius: 12px; padding: 26px 34px; box-shadow: 0 0 80px rgba(79,214,156,.25); }
   #receipt.on { opacity: 1; transform: translate(-50%, -50%) scale(1); pointer-events: auto; }
   #receipt .id { font: 900 64px/1 var(--display); color: var(--ok); letter-spacing: .04em; }
@@ -289,6 +289,9 @@ const attempts = {};
 ['damage', 'code', 'report'].forEach((k) => { const c = document.createElement('div'); c.id = 'slot-' + k; $('rail').appendChild(c); });
 card('link', 'Check a link someone sent you', `<div class="row"><input type="text" id="link" value="http://disaster-relief-claims.help/scam/" aria-label="Suspicious link"><button class="btn" id="check">Check safely</button></div><div id="threats"></div><div id="verdict"></div>`);
 
+// A newer browser run (a re-filled claim) cancels the hide timers of older ones.
+let browserRun = 0;
+const later = (fn, ms) => { const run = browserRun; if (!ms) fn(); else setTimeout(() => { if (run === browserRun) fn(); }, ms); };
 function handle(e, live) {
   const d = e.data;
   switch (e.type) {
@@ -303,7 +306,7 @@ function handle(e, live) {
       if (d.kind === 'photo') step('room', 'run');
       if (d.kind === 'report') step('report', 'run');
       if (d.kind === 'browser' && d.mode === 'inspect') step('link', 'run', 'Opening it in a sealed browser…');
-      if (d.kind === 'browser' && d.mode !== 'inspect') { step('claim', 'run', d.mode === 'submit' ? 'Submitting after your approval' : 'Agent filling the form'); $('browser').classList.add('on'); $('bsbx').textContent = d.sandbox_id; $('checks').innerHTML = d.mode === 'fill' ? '' : $('checks').innerHTML; }
+      if (d.kind === 'browser' && d.mode !== 'inspect') { browserRun++; $('receipt').classList.remove('on'); step('claim', 'run', d.mode === 'submit' ? 'Submitting after your approval' : 'Agent filling the form'); $('browser').classList.add('on'); $('bsbx').textContent = d.sandbox_id; $('checks').innerHTML = d.mode === 'fill' ? '' : $('checks').innerHTML; }
       break; }
     case 'sandbox.destroyed': {
       const p = pods[d.sandbox_id]; if (p) { p.classList.add('gone'); p.querySelector('.t').textContent = `destroyed · ${d.lifetime_s}s`; } break; }
@@ -348,11 +351,11 @@ function handle(e, live) {
       $('checks').insertAdjacentHTML('beforeend', d.fields.map((f) => `<span class="chk ok">✎ you changed ${esc(f.label)}: ${esc(f.new)}</span>`).join('')); break;
     case 'approval.result':
       $('approve').disabled = $('decline').disabled = true; $('approve-bar').classList.remove('on'); $('edit').classList.remove('on');
-      if (!d.approved) { step('claim', 'done', 'Not sent · draft kept'); setTimeout(() => $('browser').classList.remove('on'), 1200); } break;
+      if (!d.approved) { step('claim', 'done', 'Not sent · draft kept'); later(() => $('browser').classList.remove('on'), live ? 1200 : 0); } break;
     case 'claim.submitted':
       step('claim', 'done', `Receipt ${d.receipt_id}`); $('rid').textContent = d.receipt_id;
       if (d.screenshot_url) $('frame').src = d.screenshot_url;
-      setTimeout(() => { $('browser').classList.remove('on'); $('receipt').classList.add('on'); }, live ? 1400 : 0); break;
+      later(() => { $('browser').classList.remove('on'); $('receipt').classList.add('on'); }, live ? 1400 : 0); break;
     case 'case.error':
       log('⚠ ' + d.message); break;
   }
