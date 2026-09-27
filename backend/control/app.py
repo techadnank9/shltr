@@ -103,7 +103,8 @@ def save_meta(case: Case) -> None:
 
 
 @app.post("/api/cases")
-async def create_case(file: UploadFile = File(...), title: str = Form(default="")) -> dict:
+async def create_case(file: UploadFile = File(...), title: str = Form(default=""),
+                      name: str = Form(default=""), phone: str = Form(default="")) -> dict:
     ext = Path(file.filename or "").suffix.lower()
     if ext not in MEDIA_EXTS:
         raise HTTPException(status_code=415, detail="Send a photo (jpg, png, webp, heic) or a short video (mp4, mov, webm).")
@@ -117,6 +118,7 @@ async def create_case(file: UploadFile = File(...), title: str = Form(default=""
             if size > MAX_UPLOAD:
                 raise HTTPException(status_code=413, detail="The file is over 100 MB. Send a shorter video or a photo.")
             fh.write(chunk)
+    case.applicant = {"name": name.strip()[:80], "phone": phone.strip()[:30]}
     cases[case.id] = case
     save_meta(case)
     asyncio.create_task(run_case(case, upload))
@@ -207,6 +209,24 @@ async def job_file(case_id: str, job_id: str, path: str) -> Response:
     if kind == "application/pdf":
         headers["Content-Disposition"] = f'inline; filename="shltr-{case_id}-damage-report.pdf"'
     return Response(r.content, media_type=kind, headers=headers)
+
+
+@app.post("/api/cases/{case_id}/claim")
+async def claim_api(case_id: str) -> dict:
+    """(Re)start filling the aid application for a finished case."""
+    case = get_case(case_id)
+    asyncio.create_task(file_claim(case))
+    return {"ok": True}
+
+
+@app.post("/api/cases/{case_id}/answer")
+async def answer_api(case_id: str, body: dict) -> dict:
+    """Same as the WebSocket's approve / decline messages."""
+    case = get_case(case_id)
+    approved = bool(body.get("approved"))
+    case.emit("approval.result", approved=approved)
+    case.answer.put_nowait(approved)
+    return {"ok": True}
 
 
 @app.post("/api/cases/{case_id}/report")
@@ -300,6 +320,7 @@ async def run_case(case: Case, upload: Path) -> None:
         case.log(f"case assessed in {time.time() - started:.0f} s")
         case.room_summary = assessment.get("room", "")
         await generate_report(case)
+        await file_claim(case)
     except Exception as err:  # noqa: BLE001 - every failure must reach the survivor's screen
         case.photo_ready.set()
         case.emit("case.error", message=f"Something went wrong on our side: {err}"[:300])
@@ -341,6 +362,98 @@ async def generate_report(case: Case) -> None:
                   pages=meta.get("pages"), bytes=meta.get("bytes"), sha256=meta.get("sha256"), evidence=meta.get("evidence", {}))
     except Exception as err:  # noqa: BLE001
         case.emit("case.error", message=f"The PDF report failed on our side: {err}"[:300])
+
+
+PORTAL_HOST = "aid.shltr-demo.org"
+
+
+def claim_steps(case: Case) -> list[dict]:
+    """The aid form plan, from the case's real data only (ids from sites/README.md)."""
+    who = getattr(case, "applicant", {}) or {}
+    damages = [e["data"] for e in case.events if e["type"] == "damage.found"]
+    step1 = [{"fill": "#applicant-name", "value": who.get("name") or "Survivor", "label": "name"},
+             {"fill": "#applicant-phone", "value": who.get("phone") or "", "label": "phone"},
+             {"fill": "#applicant-address", "value": case.title, "label": "address"},
+             {"click": "#to-step-2", "label": "Continue"}]
+    step2 = [{"select": "#damage-type", "value": "flood", "label": "cause of damage"},
+             {"upload": "#evidence-upload", "file": ["photo.jpg", "room.glb"], "label": "photo and 3D room as evidence"},
+             {"click": "#to-step-3", "label": "Continue"}]
+    step3 = []
+    for i, d in enumerate(damages, 1):
+        if i > 3:
+            step3.append({"ensure": f"#loss-item-{i}", "add": "#add-loss"})
+        step3 += [{"fill": f"#loss-item-{i}", "value": f"{d['label']} ({d.get('metric', '')})"[:80], "label": f"loss {i}"},
+                  {"fill": f"#loss-cost-{i}", "value": str(round(d["cost_usd"])), "label": f"cost {i}"}]
+    step3.append({"click": "#to-step-4", "label": "Continue to review"})
+    step4 = [{"click": "#submit-application", "label": "Submit"}]
+    return [{"title": "Applicant", "actions": step1}, {"title": "Property and damage", "actions": step2},
+            {"title": "Losses", "actions": step3}, {"title": "Review", "actions": step4}]
+
+
+async def browse_with_frames(case: Case, task: dict) -> tuple[dict | None, str | None]:
+    """Run a browser task, streaming its live frames to the case. Returns (report, job id)."""
+    report, job = None, None
+    async for ev in runner_stream("/jobs/browse", data={"task": json.dumps(task), "allow": SITES_TARGET, "from_job": case.recon_job}):
+        t, d = ev["type"], ev["data"]
+        if job is None:
+            job = ev["job_id"]
+            case.jobs.add(job)  # so its frames can be served while it runs
+            save_meta(case)
+        if t == "browse.result":
+            report = d.get("report")
+        elif t == "browser.frame":
+            case.emit("browser.frame", sandbox_id=d["sandbox_id"], n=d["n"], title=d["title"], url=d["url"],
+                      screenshot_url=f"/api/cases/{case.id}/jobs/{job}/files/{d['file']}")
+        else:
+            case.emit(t, **d)
+    return report, job
+
+
+async def file_claim(case: Case) -> None:
+    """Pattern B: fill the (mock) aid portal live in a browser microVM, check every step with the
+    vision model, pause for the survivor's approval, then submit in a fresh microVM."""
+    try:
+        steps = claim_steps(case)
+        total = next((e["data"]["cost_usd"] for e in reversed(case.events) if e["type"] == "estimate.total"), 0)
+        task = {"mode": "fill", "url": f"http://{PORTAL_HOST}/portal/", "host_map": {PORTAL_HOST: SITES_TARGET},
+                "steps": steps, "stop_before": "#submit-application"}
+        case.log("filling in the aid application in a browser microVM · you can watch it live")
+        report, job = await browse_with_frames(case, task)
+        if not report or report.get("error"):
+            case.emit("case.error", message=f"The aid form could not be filled: {(report or {}).get('error', 'no report')}"[:300])
+            return
+        expectations = [
+            f"Step 1 of 4 (applicant) with the name filled in and the address '{case.title}'.",
+            "Step 2 of 4 (property and damage) with the cause of damage set to Flood and evidence files attached.",
+            f"Step 3 of 4 (losses) listing the loss items with a total of about ${total:,.0f}.",
+            "Step 4 of 4, the review page, showing the applicant, the damage and the losses, with a Submit button.",
+        ]
+        shots = [s for s in report.get("screenshots", []) if s["file"].startswith("shots/5")]
+        for n, (s, expect) in enumerate(zip(shots, expectations), 1):
+            async with httpx.AsyncClient(timeout=30) as client:
+                r = await client.get(f"{RUNNER}/jobs/{job}/files/{s['file']}", headers=RUNNER_AUTH)
+            check = await agent.verify_step(r.content, expect)
+            case.emit("form.step", n=n, total=4, title=s["title"], verified=check["verified"], note=check["note"],
+                      screenshot_url=f"/api/cases/{case.id}/jobs/{job}/files/{s['file']}")
+        while not case.answer.empty():  # ignore any answer given before the question was asked
+            case.answer.get_nowait()
+        items = sum(1 for e in case.events if e["type"] == "damage.found")
+        case.emit("approval.needed", summary=f"Submit the aid application for {case.title} with {items} loss items?",
+                  amount_usd=total)
+        approved = await case.answer.get()
+        if not approved:
+            case.log("you chose not to submit · the draft stays here, nothing was sent")
+            return
+        case.log("approved · submitting in a fresh browser microVM")
+        report, job = await browse_with_frames(case, {**task, "mode": "submit"})
+        if not report or not report.get("receipt_id"):
+            case.emit("case.error", message="The application could not be submitted. Nothing was charged or sent.")
+            return
+        receipt = next((s["file"] for s in report["screenshots"] if s["title"] == "Receipt"), None)
+        case.emit("claim.submitted", receipt_id=report["receipt_id"],
+                  screenshot_url=f"/api/cases/{case.id}/jobs/{job}/files/{receipt}" if receipt else None)
+    except Exception as err:  # noqa: BLE001
+        case.emit("case.error", message=f"The claim step failed on our side: {err}"[:300])
 
 
 async def check_link(case: Case, url: str) -> None:

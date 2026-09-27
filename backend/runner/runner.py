@@ -188,18 +188,40 @@ async def run_browse_job(job_id: str, mode: str, targets: list[str], in_dir: Pat
             BROWSER_IMAGE,
         ]
         proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
+        progress, sent = out_dir / "progress.jsonl", 0
+        reader = asyncio.create_task(proc.stdout.read())
         try:
-            async for raw in proc.stdout:
-                line = raw.decode(errors="replace").rstrip()
-                if line:
+            # Live view: while the browser runs, stream every new frame it writes to /out.
+            deadline = time.time() + BROWSER_LIMITS["timeout_s"] + 30
+            while proc.returncode is None and time.time() < deadline:
+                try:
+                    await asyncio.wait_for(proc.wait(), timeout=0.3)
+                except asyncio.TimeoutError:
+                    pass
+                if progress.is_file():
+                    lines = progress.read_text().splitlines()
+                    for line in lines[sent:]:
+                        try:
+                            f = json.loads(line)
+                        except json.JSONDecodeError:
+                            break  # partially written line; pick it up next round
+                        sent += 1
+                        yield event("browser.frame", job_id, sandbox_id=name, n=f["n"], title=f["title"], file=f["file"], url=f["url"])
+            if proc.returncode is None:
+                proc.kill()
+                code = -9
+            else:
+                code = proc.returncode
+            for line in (await reader).decode(errors="replace").splitlines():
+                if line.strip():
                     yield event("log.line", job_id, sandbox_id=name, stream="stdout", text=line[:500])
-            code = await asyncio.wait_for(proc.wait(), timeout=BROWSER_LIMITS["timeout_s"] + 30)
-        except asyncio.TimeoutError:
-            proc.kill()
-            code = -9
         finally:
             await msb("stop", name)
             await msb("remove", "-f", name)  # the quarantined download dies here with the microVM
+        if progress.is_file():  # frames written in the last moments
+            for line in progress.read_text().splitlines()[sent:]:
+                f = json.loads(line)
+                yield event("browser.frame", job_id, sandbox_id=name, n=f["n"], title=f["title"], file=f["file"], url=f["url"])
         report = None
         report_path = out_dir / "report.json"
         if report_path.is_file() and report_path.stat().st_size < 2_000_000:
