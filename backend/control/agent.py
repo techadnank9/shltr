@@ -35,12 +35,23 @@ GEOM_DOC = """Module `geom` (import geom) is available, with numpy and trimesh:
 Photo positions are normalised: u 0..1 left to right, v 0..1 top to bottom. Units are metres."""
 
 
-async def chat(messages: list[dict], max_tokens: int = 2000) -> str:
-    body = {"model": MODEL, "messages": messages, "max_tokens": max_tokens, "temperature": 0.2}
-    async with httpx.AsyncClient(timeout=180) as client:
-        r = await client.post(f"{BASE}/chat/completions", headers={"Authorization": f"Bearer {KEY}"}, json=body)
-        r.raise_for_status()
-        return (r.json()["choices"][0]["message"].get("content") or "").strip()
+async def chat(messages: list[dict], max_tokens: int = 6000, effort: str = "low") -> str:
+    """glm-5.3 is a reasoning model: hidden reasoning tokens count against max_tokens. With a long
+    prompt it can spend the whole budget reasoning and return empty content (finish_reason=length).
+    Our tasks are tightly specified, so low effort is enough; an empty answer is retried once with
+    double the budget, then reported with the reason."""
+    for budget in (max_tokens, max_tokens * 2):
+        body = {"model": MODEL, "messages": messages, "max_tokens": budget, "temperature": 0.2, "reasoning_effort": effort}
+        async with httpx.AsyncClient(timeout=180) as client:
+            r = await client.post(f"{BASE}/chat/completions", headers={"Authorization": f"Bearer {KEY}"}, json=body)
+            r.raise_for_status()
+        data = r.json()
+        choice = data["choices"][0]
+        content = (choice["message"].get("content") or "").strip()
+        if content:
+            return content
+        used = data.get("usage", {}).get("completion_tokens")
+    raise RuntimeError(f"{MODEL} returned no answer (finish_reason={choice.get('finish_reason')}, {used} tokens used)")
 
 
 def first_json(text: str) -> dict:
@@ -65,7 +76,7 @@ async def assess_damage(photo_jpg: bytes) -> dict:
         {"type": "text", "text": prompt},
         {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64," + base64.b64encode(photo_jpg).decode()}},
     ]
-    data = first_json(await chat([{"role": "user", "content": content}], max_tokens=1500))
+    data = first_json(await chat([{"role": "user", "content": content}]))
     items = []
     for i, it in enumerate(data.get("items", [])[:6], 1):
         try:
@@ -100,7 +111,7 @@ Reply with the complete script in a single ```python block and nothing else."""
 
 
 async def write_code(messages: list[dict]) -> str:
-    text = await chat(messages, max_tokens=2500)
+    text = await chat(messages, max_tokens=8000)
     m = re.search(r"```(?:python)?\s*\n(.*?)```", text, re.S)
     return (m.group(1) if m else text).strip()
 
