@@ -26,7 +26,7 @@ flowchart LR
   R -- "files, logs, screenshots" --> CP
 ```
 
-- Only VM 1 has public ports (80, 443). VM 2 accepts SSH from the team's IPs and runner traffic from VM 1 over the VPC, nothing else.
+- Only VM 1 has public ports (80 and 443, plus 22 from the admin IP). VM 2 has no inbound ports on the internet; it accepts traffic only from VM 1 over the VPC, and SSH to it goes through VM 1 (D17).
 - The model only suggests. VM 1 decides what to run, and VM 2 runs it inside a sandbox.
 
 ## User flow
@@ -81,8 +81,9 @@ Retries: up to 3 per step, with the stderr fed back to the model.
 
 | Resource | Spec |
 |---|---|
-| VPC | Atlanta |
-| VM 1 | Cloud Compute, Ubuntu 24.04, 2 vCPU, 4 GB |
-| VM 2 | VX1, Ubuntu 24.04, 4 vCPU, 8–16 GB |
-| Firewall groups | VM 1: 80, 443 public, 22 from team IPs. VM 2: 22 from team IPs only |
+| VPC | `shltr-vpc`, Atlanta, 10.40.0.0/24 |
+| VM 1 | `vc2-2c-4gb`: Cloud Compute, Ubuntu 24.04, 2 vCPU, 4 GB |
+| VM 2 | `vx1-g-4c-16g-240s`: VX1 with KVM, Ubuntu 24.04, 4 vCPU, 16 GB, 240 GB |
+| Firewalls | VM 1: 80 and 443 public, 22 from the admin IP. VM 2: nothing public, enforced by its own `ufw` too |
+| How to build it | `infra/README.md` |
 | Keys | Vultr API key (IP-restricted) and inference key, in `.env` only |

@@ -41,6 +41,15 @@ A rough full case on `glm-5.3`: about 40,000 input tokens (photos and screenshot
 - **Inference key:** Products → Serverless → Inference (or Quick Deploy → Serverless Inference) → Add Serverless Inference → Label `shltr` → acknowledge the model and charges note → Add. Copy the key from the new entry into `.env` as `VULTR_INFERENCE_KEY`.
 - **API key access control:** Account → API (under OTHER) → Access Control → enter the IP → Add. The API returns `401 Unauthorized IP address: <ip>` from any IP not on the list, and `infra/common.py` prints this fix. Add every network you work from (venue, home, hotspot).
 
+## Findings from creating our servers (Part 3)
+
+- **Firewall groups vs VX1:** with a firewall group that allowed only port 22 from one IP, the VX1 server's SSH first timed out and later answered from the internet even with **zero** rules in its group. Don't rely on the Vultr firewall group alone for VX1; enforce it on the host (`ufw`). The Cloud Compute (`vc2`) server behaved as expected.
+- **Ubuntu 24.04 images ship with `ufw` active**, allowing only 22/tcp from anywhere. Open 80 and 443 yourself on a web server.
+- **VPC:** `attach_vpc` on instance create gives each server a second network card (`enp8s0`) with its private IP already configured. VM 1 to VM 2 latency is about 0.5 ms.
+- **VX1 exposes `/dev/kvm`** (AMD, `svm`); Cloud Compute (`vc2`) does not.
+- **Boot time:** both servers were running about a minute after the create call.
+- **Microsandbox 0.7.3** installs with the one-line installer; `msb doctor` warns that reflink clones are unavailable on the default filesystem (sandbox disks are copied instead of shared), which only affects creation speed.
+
 ## Billing gotchas
 
 - Vultr **keeps billing stopped servers**. Delete servers you don't need.

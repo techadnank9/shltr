@@ -4,7 +4,7 @@ What it builds (all named shltr-*, all in one region):
   ssh key      shltr            public half of infra/keys/shltr_ed25519 (generated if missing)
   VPC          shltr-vpc        private network 10.40.0.0/24 between the two servers
   firewall     shltr-vm1        22 from your IP, 80 and 443 from anywhere
-  firewall     shltr-vm2        22 from your IP only (VM 2 is invisible to the internet)
+  firewall     shltr-vm2        no inbound ports at all; reached only from VM 1 over the VPC
   server       shltr-vm1        control plane, Ubuntu 24.04
   server       shltr-vm2        sandbox host, VX1 (exposes KVM for microVMs), Ubuntu 24.04
 
@@ -19,6 +19,7 @@ import json
 import subprocess
 import time
 import urllib.request
+from pathlib import Path
 
 from common import REPO_ROOT, http_json, load_env, require
 
@@ -40,11 +41,25 @@ def my_public_ip() -> str:
 
 
 def firewall_rules(name: str, admin_ip: str) -> list[dict]:
+    """VM 1 is the only public door. VM 2 gets no inbound rules at all: it is reached
+    only from VM 1 over the VPC (SSH uses VM 1 as a jump host, see infra/keys/ssh_config)."""
+    if name != "shltr-vm1":
+        return []
     ssh = {"ip_type": "v4", "protocol": "tcp", "subnet": admin_ip, "subnet_size": 32, "port": "22", "notes": "ssh from admin"}
-    if name == "shltr-vm1":
-        web = [{"ip_type": "v4", "protocol": "tcp", "subnet": "0.0.0.0", "subnet_size": 0, "port": p, "notes": f"web {p}"} for p in ("80", "443")]
-        return [ssh, *web]
-    return [ssh]
+    web = [{"ip_type": "v4", "protocol": "tcp", "subnet": "0.0.0.0", "subnet_size": 0, "port": p, "notes": f"web {p}"} for p in ("80", "443")]
+    return [ssh, *web]
+
+
+def write_ssh_config(servers: dict) -> Path:
+    """`ssh -F infra/keys/ssh_config vm1` or `... vm2` (vm2 hops through vm1 over the VPC)."""
+    key = KEY_PATH.as_posix()
+    known = (KEY_PATH.parent / "known_hosts").as_posix()
+    common = f"  User root\n  IdentityFile {key}\n  UserKnownHostsFile {known}\n  StrictHostKeyChecking accept-new\n  ConnectTimeout 20\n"
+    text = (f"Host vm1\n  HostName {servers['shltr-vm1']['main_ip']}\n{common}\n"
+            f"Host vm2\n  HostName {servers['shltr-vm2']['vpc_ip']}\n  ProxyJump vm1\n{common}")
+    path = KEY_PATH.parent / "ssh_config"
+    path.write_text(text)
+    return path
 
 
 def ensure_ssh_key(token: str, create: bool) -> str | None:
@@ -83,7 +98,7 @@ def ensure_vpc(token: str, region: str, create: bool) -> str | None:
 
 def ensure_firewall(token: str, name: str, admin_ip: str, create: bool) -> str | None:
     rules = firewall_rules(name, admin_ip)
-    summary = ", ".join(f"{r['port']} from {r['subnet']}/{r['subnet_size']}" for r in rules)
+    summary = ", ".join(f"{r['port']} from {r['subnet']}/{r['subnet_size']}" for r in rules) or "no inbound ports (private network only)"
     for g in http_json("GET", f"{API}/firewalls?per_page=500", token).get("firewall_groups", []):
         if g.get("description") == name:
             print(f"  reuse firewall  {name} ({g['id']})")
@@ -178,10 +193,12 @@ def main() -> None:
     state = {"region": args.region, "admin_ip": admin_ip, "ssh_key_id": ssh_id, "vpc_id": vpc_id,
              "firewalls": fw_ids, "servers": servers, "ssh_key_path": str(KEY_PATH.relative_to(REPO_ROOT))}
     STATE_PATH.write_text(json.dumps(state, indent=2))
-    print(f"\nReady. Saved {STATE_PATH.relative_to(REPO_ROOT)}")
+    config = write_ssh_config(servers)
+    print(f"\nReady. Saved {STATE_PATH.relative_to(REPO_ROOT)} and {config.relative_to(REPO_ROOT)}")
     for label, s in servers.items():
         print(f"  {label}  public {s['main_ip']:<16} private {s['vpc_ip']:<12} {s['plan']}")
-    print(f"\nSSH: ssh -i {KEY_PATH.relative_to(REPO_ROOT)} root@<public ip>")
+    print("\nNext: run infra/bootstrap/vm1.sh and vm2.sh on the servers (see infra/README.md), then python infra/smoke_test.py")
+    print("SSH: ssh -F infra/keys/ssh_config vm1   (vm2 goes through vm1: ssh -F infra/keys/ssh_config vm2)")
 
 
 if __name__ == "__main__":
