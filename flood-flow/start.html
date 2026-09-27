@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sheltr | Start a Case</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="start-page">
+    <header class="site-header"><a class="wordmark" href="index.html">SHELTR<span>.</span></a><nav><a href="index.html">After the water</a><a href="process.html">The flow</a><a href="safety.html">Containment</a></nav><a class="nav-action" href="start.html">Start a case <span>↗</span></a></header>
+    <main class="start-layout">
+      <section class="start-copy"><p class="eyebrow reveal">Start where you are</p><h1 class="reveal">We can begin<br />with <em>one room.</em></h1><p class="reveal">A photo is enough to start. Your files will only be opened inside a protected, temporary workspace.</p><div class="trust-row reveal"><span>01 / Protected intake</span><span>02 / Nothing submitted without you</span></div></section>
+      <form class="case-form" id="case-form" data-reveal><label>Your name<input type="text" id="f-name" maxlength="80" placeholder="Your name" /></label><label>Phone (optional)<input type="text" id="f-phone" maxlength="30" placeholder="For the aid application" /></label><label>Address or room<input type="text" id="f-title" maxlength="80" placeholder="14 Alder Lane, ground floor" /></label><label class="upload-zone"><input type="file" id="f-file" accept="image/*,video/*" /><span id="f-picked">Drop a room photo here</span><small>JPG, PNG, or video walkthrough · up to 100 MB</small></label><button type="submit" id="f-go">Create protected case <span>→</span></button><p class="form-note" id="f-status" role="status">Opened only inside a sealed, throwaway sandbox on Vultr. Nothing is submitted without your approval.</p></form>
+    </main>
+    <footer><a class="wordmark" href="index.html">SHELTR<span>.</span></a><p>Built for the moments after the storm.</p><p>2026</p></footer>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.7/dist/gsap.min.js"></script><script src="https://cdn.jsdelivr.net/npm/gsap@3.12.7/dist/ScrollTrigger.min.js"></script>
+  <script>
+const f = (id) => document.getElementById(id);
+f('f-file').addEventListener('change', () => { const x = f('f-file').files[0]; if (x) f('f-picked').textContent = `${x.name} · ${(x.size / 1048576).toFixed(1)} MB`; });
+f('case-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const file = f('f-file').files[0]; if (!file) return;
+  f('f-go').disabled = true; f('f-status').textContent = 'Uploading into a sealed sandbox…';
+  const body = new FormData();
+  body.append('file', file); body.append('title', f('f-title').value); body.append('name', f('f-name').value); body.append('phone', f('f-phone').value);
+  try {
+    const r = await fetch('/api/cases', { method: 'POST', body });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.detail || `Upload failed (${r.status})`);
+    f('f-status').textContent = 'Case opened. Loading your room…'; location.href = data.url;
+  } catch (err) { f('f-status').textContent = err.message; f('f-go').disabled = false; }
+});
+</script>
+</body>
+</html>
