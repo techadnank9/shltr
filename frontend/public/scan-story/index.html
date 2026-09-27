@@ -16,7 +16,7 @@
     -webkit-font-smoothing:antialiased}
   canvas{display:block}
   #stage{position:fixed;inset:0;
-    background:radial-gradient(120% 90% at 50% 40%,#13222a,var(--bg) 70%)}
+    background:radial-gradient(120% 90% at 50% 38%,#1d3340,#0f1a20 72%)}
   .panel{position:fixed;background:var(--panel);border:1px solid var(--line);
     border-radius:10px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:12}
   #cap{left:50%;transform:translateX(-50%);bottom:74px;width:min(620px,calc(100vw - 32px));
@@ -121,7 +121,7 @@ const $=id=>document.getElementById(id);
 const fail=m=>{const e=$('err');e.style.display='block';e.textContent=m;$('load').classList.add('gone');};
 
 const scene=new THREE.Scene();
-scene.fog=new THREE.Fog(0x0b1216,34,140);
+scene.fog=new THREE.Fog(0x16232b,40,165);
 const camera=new THREE.PerspectiveCamera(50,innerWidth/innerHeight,0.05,600);
 const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
@@ -129,8 +129,9 @@ renderer.setSize(innerWidth,innerHeight);
 renderer.outputColorSpace=THREE.SRGBColorSpace;
 $('stage').appendChild(renderer.domElement);
 
-scene.add(new THREE.HemisphereLight(0xffffff,0x33404a,2.0));
-const key=new THREE.DirectionalLight(0xffffff,1.4); key.position.set(4,9,5); scene.add(key);
+scene.add(new THREE.HemisphereLight(0xfff4e2,0x5a6470,2.9));
+const key=new THREE.DirectionalLight(0xfff0d8,2.1); key.position.set(5,10,6); scene.add(key);
+const fill=new THREE.DirectionalLight(0x9fc4e8,1.15); fill.position.set(-6,5,-5); scene.add(fill);
 
 const U={water:{value:-1e9}, peak:{value:-1e9}, stain:{value:1.0}};
 let water=null, floorY=0, ctr=new THREE.Vector3(), footX=1, footZ=1, R=10, ready=false;
@@ -147,14 +148,15 @@ function hookStain(mat){
         #include <dithering_fragment>
         if(uStain>0.5){
           float band=1.0-smoothstep(0.0,0.14,abs(vWY-uPeak));
-          gl_FragColor.rgb=mix(gl_FragColor.rgb,vec3(0.24,0.18,0.11),band*0.85);
+          gl_FragColor.rgb=mix(gl_FragColor.rgb,vec3(0.34,0.24,0.13),band*0.80);
           float below=1.0-smoothstep(-0.04,0.04,vWY-uPeak);
-          gl_FragColor.rgb=mix(gl_FragColor.rgb,gl_FragColor.rgb*vec3(0.60,0.56,0.44),below*0.68);
+          gl_FragColor.rgb=mix(gl_FragColor.rgb,gl_FragColor.rgb*vec3(0.80,0.74,0.60),below*0.55);
         }
         float d=uWater-vWY;
         if(d>0.0){
           float t=clamp(d/1.5,0.0,1.0);
-          gl_FragColor.rgb=mix(gl_FragColor.rgb,vec3(0.20,0.19,0.12),0.26+0.46*t);
+          gl_FragColor.rgb=mix(gl_FragColor.rgb,vec3(0.46,0.42,0.24),0.16+0.26*t);
+          gl_FragColor.rgb*=1.0+0.10*(1.0-t);
         }
       `);
   };
@@ -201,8 +203,9 @@ new GLTFLoader().load('../scan-demo/scan.glb', gltf=>{
 
   const g=new THREE.PlaneGeometry(size.x*1.02,size.z*1.02); g.rotateX(-Math.PI/2);
   water=new THREE.Mesh(g,new THREE.MeshPhysicalMaterial({
-    color:0x6d6344, transparent:true, opacity:0.52, roughness:0.14,
-    metalness:0.0, transmission:0.72, thickness:0.5, ior:1.33, side:THREE.DoubleSide}));
+    color:0x9a8f5e, transparent:true, opacity:0.50, roughness:0.08,
+    metalness:0.0, transmission:0.80, thickness:0.35, ior:1.33,
+    sheen:0.6, sheenColor:new THREE.Color(0xffe6a8), side:THREE.DoubleSide}));
   water.position.set(ctr.x,floorY,ctr.z); water.visible=false; scene.add(water);
 
   buildMarks();
@@ -213,17 +216,17 @@ new GLTFLoader().load('../scan-demo/scan.glb', gltf=>{
 
 const STEPS=[
   {t:5.0, ttl:'The survivor sends a scan', txt:'One walk through the room with a phone. 272,167 triangles, measured in metres.',
-   cam:{az:0.6,el:0.42,dist:1.35}, depth:0,    marks:0, tally:false},
+   cam:{az:0.30,el:0.40,dist:1.30}, depth:0,    marks:0, tally:false},
   {t:6.5, ttl:'The water comes up',        txt:'The flood rises through the room. Everything it touches is a loss to prove.',
-   cam:{az:1.5,el:0.24,dist:1.05}, depth:1.35, marks:0, tally:false},
+   cam:{az:0.90,el:0.26,dist:1.02}, depth:1.35, marks:0, tally:false},
   {t:4.5, ttl:'It leaves a line',          txt:'The water drops, but the mud line stays on the wall. That line is the evidence.',
-   cam:{az:2.3,el:0.06,dist:0.52}, depth:0.35, marks:0, tally:false},
+   cam:{az:1.45,el:0.11,dist:0.50}, depth:0.35, marks:0, tally:false},
   {t:6.0, ttl:'The agent reads the room',  txt:'Every surface below the line is measured against the scan geometry.',
-   cam:{az:3.3,el:0.30,dist:0.95}, depth:0.35, marks:6, tally:false},
+   cam:{az:1.95,el:0.30,dist:0.92}, depth:0.35, marks:6, tally:false},
   {t:5.5, ttl:'The loss is assembled',     txt:'Areas, wall runs and contents are totalled from the scan, not from a guess.',
-   cam:{az:4.2,el:0.46,dist:1.20}, depth:0.35, marks:6, tally:true},
+   cam:{az:2.50,el:0.44,dist:1.16}, depth:0.35, marks:6, tally:true},
   {t:5.0, ttl:'Ready for the claim',       txt:'This is what goes into the aid application — after the survivor approves it.',
-   cam:{az:5.3,el:0.55,dist:1.45}, depth:0.35, marks:6, tally:true},
+   cam:{az:3.05,el:0.54,dist:1.40}, depth:0.35, marks:6, tally:true},
 ];
 const TOTAL=STEPS.reduce((a,s)=>a+s.t,0);
 const STARTS=[]; STEPS.reduce((a,s,i)=>{STARTS[i]=a; return a+s.t;},0);
