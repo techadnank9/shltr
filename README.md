@@ -15,6 +15,7 @@ Built during the Vultr Agent Arena Hackathon 2026 (September 26–27), track **B
 | Link | What it is |
 |---|---|
 | https://45-76-251-95.sslip.io/story/ | The story site: the problem, the process and the safety model |
+| https://45-76-251-95.sslip.io/arch | Architecture: system map, one case step by step, containment, tech stack, live status |
 | https://45-76-251-95.sslip.io/start | Start a real case: upload a photo of a damaged room |
 | https://45-76-251-95.sslip.io/case/c_3a778588 | A finished real case (FEMA photo, Liberty, KY) |
 

@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sheltr Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@800&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&display=swap">
+<style>
+  :root { color-scheme: dark; --ink:#070D10; --panel:#0E1A20; --panel2:#132229; --line:#22343C; --text:#E6ECEE; --muted:#8FA3AA;
+          --amber:#F2A33A; --red:#FF4D55; --ok:#4FD69C; --water:#46B3E6; --mono:"IBM Plex Mono", monospace; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ink); color: var(--text); font: 15px/1.55 "IBM Plex Sans", system-ui, sans-serif; }
+  main { max-width: 1180px; margin: 0 auto; padding: 28px 16px 64px; }
+  a { color: var(--amber); }
+  h1 { margin: 0; font: 800 clamp(40px, 7vw, 72px)/0.9 "Big Shoulders Display", Impact, sans-serif; text-transform: uppercase; }
+  h1 span { color: var(--amber); }
+  h2 { margin: 48px 0 6px; font: 800 30px/1 "Big Shoulders Display", Impact, sans-serif; text-transform: uppercase; letter-spacing: .02em; }
+  h2 small { display: block; margin-top: 8px; font: 13px var(--mono); text-transform: none; color: var(--muted); letter-spacing: 0; }
+  .lede { max-width: 760px; color: var(--muted); font-size: 17px; margin: 14px 0 0; }
+  .tag { display: inline-block; font: 11px var(--mono); letter-spacing: .12em; padding: 3px 8px; border-radius: 3px; border: 1px solid var(--line); color: var(--muted); }
+  nav { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 18px 0 0; font: 12.5px var(--mono); }
+
+  #live { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-top: 22px; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+  .stat b { display: block; font: 600 18px var(--mono); color: var(--text); }
+  .stat span { font: 11px var(--mono); color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); margin-right: 6px; box-shadow: 0 0 10px var(--ok); }
+
+  .diagram { margin-top: 18px; display: grid; grid-template-columns: 1fr 1.25fr 1.25fr; gap: 14px; align-items: stretch; }
+  .zone { border: 1px dashed var(--line); border-radius: 12px; padding: 12px; position: relative; }
+  .zone > .tag { position: absolute; top: -11px; left: 12px; background: var(--ink); }
+  .zone.vpc { grid-column: 2 / 4; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; border-color: rgba(70,179,230,.5); padding-top: 18px; }
+  .zone.vpc > .tag { color: var(--water); border-color: rgba(70,179,230,.5); }
+  .box { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .box + .box { margin-top: 10px; }
+  .box h3 { margin: 0 0 2px; font-size: 15px; }
+  .box .sub { font: 11.5px var(--mono); color: var(--muted); }
+  .box ul { margin: 8px 0 0; padding-left: 18px; font-size: 13.5px; color: #cfd9dc; }
+  .box.user, .box.vm1 { border-color: rgba(242,163,58,.5); }
+  .box.vm2 { border-color: rgba(79,214,156,.45); }
+  .box.ai { border-color: rgba(70,179,230,.5); }
+  .pods { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .pod { border: 1px solid rgba(79,214,156,.4); border-radius: 7px; padding: 8px 10px; background: rgba(79,214,156,.06); font-size: 12.5px; }
+  .pod b { display: block; font: 600 11px var(--mono); color: var(--ok); letter-spacing: .08em; }
+  .arrow { font: 12px var(--mono); color: var(--amber); margin: 8px 0; }
+  .arrow.blue { color: var(--water); }
+  .deny { font: 12px var(--mono); color: var(--red); margin-top: 8px; }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 14px; }
+  th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+  th { font: 600 11px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  td:first-child { white-space: nowrap; font-family: var(--mono); color: var(--amber); }
+  .scroll { overflow-x: auto; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin-top: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .card h3 { margin: 0 0 6px; font-size: 16px; }
+  .card p { margin: 0; color: #cfd9dc; font-size: 14px; }
+  .card.red { border-color: rgba(255,77,85,.45); } .card.red h3 { color: var(--red); }
+  .card.ok { border-color: rgba(79,214,156,.45); } .card.ok h3 { color: var(--ok); }
+  ol.flow { counter-reset: s; list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 8px; }
+  ol.flow li { counter-increment: s; display: grid; grid-template-columns: 34px 1fr; gap: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; }
+  ol.flow li::before { content: counter(s, decimal-leading-zero); font: 600 13px var(--mono); color: var(--amber); padding-top: 2px; }
+  ol.flow li b { display: block; }
+  ol.flow li span { color: var(--muted); font-size: 13.5px; }
+  .quote { margin-top: 18px; border-left: 3px solid var(--amber); padding: 10px 16px; background: var(--panel2); font-size: 17px; }
+  footer { margin-top: 48px; color: var(--muted); font: 12px var(--mono); }
+  @media (max-width: 900px) {
+    .diagram { grid-template-columns: 1fr; }
+    .zone.vpc { grid-column: auto; grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <span class="tag">VULTR AGENT ARENA 2026 · BLAST RADIUS ZERO</span>
+  <h1 style="margin-top:14px">Shel<span>tr</span> architecture</h1>
+  <p class="lede">An agent that does real work for flood survivors: 3D from a photo, damage pricing, code, a PDF, a scam-link check and a live aid claim. Every risky step runs in a throwaway microVM on Vultr, inside one private network.</p>
+  <nav><a href="#live-h">Live status</a><a href="#map">System map</a><a href="#flow">One case, step by step</a><a href="#contain">Containment</a><a href="#stack">Tech stack</a><a href="#vultr">Why only Vultr</a><a href="#limits">Honest limits</a><a href="/story/">Story ↗</a><a href="/case/c_3a778588">Finished case ↗</a><a href="/start">Try it ↗</a></nav>
+
+  <h2 id="live-h">Live status<small>Read from this server's /api/health when the page loads, not hard-coded.</small></h2>
+  <div id="live"><div class="stat"><span>Status</span><b>loading…</b></div></div>
+
+  <h2 id="map">System map<small>Only the web app is public. The sandbox host has no public ports.</small></h2>
+  <div class="diagram">
+    <div class="zone"><span class="tag">INTERNET</span>
+      <div class="box user"><h3>Survivor's browser</h3><div class="sub">phone or laptop</div>
+        <ul><li>Uploads a photo or video</li><li>Watches the case live</li><li>Edits and approves the claim</li></ul></div>
+      <div class="arrow">HTTPS + WebSocket →</div>
+      <div class="box ai"><h3>Vultr Serverless Inference</h3><div class="sub">api.vultrinference.com</div>
+        <ul><li><b>glm-5.3</b>: planning, damage vision, code writing, scam judgement, form-step checks</li><li>Called only from VM 1, with the key held on VM 1</li></ul></div>
+    </div>
+    <div class="zone vpc"><span class="tag">VULTR VPC 10.40.0.0/24 · PRIVATE</span>
+      <div>
+        <div class="box vm1"><h3>VM 1 · Control plane</h3><div class="sub">Vultr Cloud Compute · 10.40.0.3</div>
+          <ul><li>Caddy (HTTPS) → FastAPI</li><li>Planner agent, case store</li><li>WebSocket event stream with replay</li><li><b>Holds every API key</b></li><li>Pages: /story, /start, /case, /arch</li></ul></div>
+        <div class="box vm1"><h3>Mock sites · VPC only</h3><div class="sub">10.40.0.3:8080</div>
+          <ul><li>Mock aid portal (fictional agency)</li><li>Fake scam page (download + data theft)</li><li>Reachable only from inside the VPC</li></ul></div>
+      </div>
+      <div>
+        <div class="box vm2"><h3>VM 2 · Sandbox host</h3><div class="sub">Vultr VX1 · 10.40.0.4 · <b>no public ports</b></div>
+          <ul><li>Runner (FastAPI, bearer token)</li><li>Creates, watches and destroys microVMs</li><li>Streams logs, frames and results to VM 1</li></ul>
+          <div class="pods">
+            <div class="pod"><b>PHOTO</b>3D room, no network</div>
+            <div class="pod"><b>CODE</b>AI-written Python</div>
+            <div class="pod"><b>REPORT</b>PDF + fingerprints</div>
+            <div class="pod"><b>BROWSER</b>Chromium, allowlist</div>
+          </div>
+          <div class="deny">✕ no keys · ✕ no internet · destroyed after each job</div>
+        </div>
+        <div class="arrow blue">microVM → VPC only: the runner, or the mock sites for the browser</div>
+      </div>
+    </div>
+  </div>
+
+  <h2 id="flow">One case, step by step<small>What happens after a survivor uploads one photo.</small></h2>
+  <ol class="flow">
+    <li><div><b>Upload, sealed off</b><span>The file is opened only inside a photo microVM: decoded there, EXIF stripped, re-encoded. Everything after this sees only the clean copy. A video gives its sharpest frame.</span></div></li>
+    <li><div><b>3D room</b><span>Depth Anything V2 (metric indoor) estimates metres per pixel and builds a textured mesh of about 268k vertices. No network inside.</span></div></li>
+    <li><div><b>Find and price the damage</b><span>glm-5.3 on Vultr Serverless Inference returns the damaged items, boxes, severity and cost.</span></div></li>
+    <li><div><b>Measure it (Pattern A)</b><span>glm-5.3 writes Python that ray-casts onto the mesh. It runs in a fresh microVM; if it fails, the error goes back and the agent retries, visibly.</span></div></li>
+    <li><div><b>Evidence report</b><span>A report microVM builds a 4-page PDF: photo, damage table, 3D views, SHA-256 fingerprints, sandbox ids.</span></div></li>
+    <li><div><b>Check a scam link</b><span>A browser microVM opens the link. The forced download is captured in quarantine; the data-theft request is blocked by the allowlist. The model gives a verdict.</span></div></li>
+    <li><div><b>Fill the claim live (Pattern B)</b><span>A browser microVM fills the mock aid portal and streams a screenshot after every action. The vision model checks each step. It stops before Submit.</span></div></li>
+    <li><div><b>Human gate</b><span>The survivor sees every field the agent typed, can edit any of them, then approves. "Not yet" keeps the draft.</span></div></li>
+    <li><div><b>Submit in a fresh microVM</b><span>A new browser microVM types the approved values, submits and returns the receipt. Every microVM is destroyed.</span></div></li>
+  </ol>
+
+  <h2 id="contain">Containment<small>What each sandbox can and cannot do.</small></h2>
+  <div class="cards">
+    <div class="card ok"><h3>MicroVM, not a container</h3><p>Each job gets its own Microsandbox microVM with its own kernel, on a VX1 with hardware virtualization. Created for one job, destroyed afterwards.</p></div>
+    <div class="card ok"><h3>Network off by default</h3><p>Every microVM starts with no network. One allow rule is added per job: the runner, or the mock sites for the browser. Nothing else is reachable.</p></div>
+    <div class="card ok"><h3>No secrets inside</h3><p>API keys live only on VM 1. Input is mounted read-only, output goes to a separate folder, and CPU, memory and time are capped.</p></div>
+    <div class="card red"><h3>Forced download → held</h3><p>The scam page's download lands in quarantine inside the browser microVM. We report its name, size and SHA-256; it dies with the VM.</p></div>
+    <div class="card red"><h3>Data theft → blocked</h3><p>The page's POST of the survivor's details to an outside server fails on the allowlist. The blocked request is shown on screen.</p></div>
+    <div class="card ok"><h3>Nothing submits itself</h3><p>A pause before Submit, a vision check per step, survivor edits and approval, then a fresh microVM for the submit. Only our own mock portal is ever targeted.</p></div>
+  </div>
+
+  <h2 id="stack">Tech stack</h2>
+  <div class="scroll"><table>
+    <tr><th>Layer</th><th>Technology</th><th>Role</th></tr>
+    <tr><td>Model</td><td>glm-5.3 · Vultr Serverless Inference (OpenAI-compatible)</td><td>Plan, vision, code, scam judgement, step checks</td></tr>
+    <tr><td>Images</td><td>z-image-turbo · Vultr Serverless Inference</td><td>The labelled AI sample room</td></tr>
+    <tr><td>Control plane</td><td>Vultr Cloud Compute · Python, FastAPI, WebSocket, Caddy</td><td>Agent, case store, live events, HTTPS</td></tr>
+    <tr><td>Sandbox host</td><td>Vultr VX1 · runner (FastAPI)</td><td>Creates, streams and destroys microVMs</td></tr>
+    <tr><td>Sandboxes</td><td>Microsandbox 0.7 microVMs</td><td>One throwaway VM per job</td></tr>
+    <tr><td>3D</td><td>Depth Anything V2 metric indoor, trimesh</td><td>One photo → metric depth → textured mesh</td></tr>
+    <tr><td>Browser</td><td>Playwright + Chromium in a microVM</td><td>Scam-link check, live claim filling</td></tr>
+    <tr><td>Report</td><td>reportlab, matplotlib</td><td>4-page PDF with fingerprints</td></tr>
+    <tr><td>Network</td><td>Vultr VPC 10.40.0.0/24, ufw</td><td>Private links; the sandbox host has no public ports</td></tr>
+    <tr><td>Infra</td><td>Vultr API v2 scripts</td><td>Provision, lock down, smoke-test, tear down</td></tr>
+    <tr><td>Front end</td><td>three.js, HTML/JS</td><td>3D mission control, story site</td></tr>
+  </table></div>
+
+  <h2 id="vultr">Why only Vultr</h2>
+  <div class="cards">
+    <div class="card"><h3>The track asks for it</h3><p>"All running on Vultr infrastructure." Model, agent, sandboxes and network all run on Vultr.</p></div>
+    <div class="card"><h3>One private network</h3><p>Control plane, sandbox host and mock sites share one Vultr VPC. A second cloud would mean public links between providers: more ways in.</p></div>
+    <div class="card"><h3>Keys and data stay put</h3><p>Inference runs on Vultr too, so photos, keys and model calls never go to a third party.</p></div>
+    <div class="card"><h3>VX1 runs microVMs</h3><p>Hardware virtualization on VX1 gives each job its own kernel: stronger isolation than containers.</p></div>
+  </div>
+  <div class="quote">"Everything — model, agent, sandboxes, network — runs inside one Vultr private network. The only things exposed are the web app and the model API. That is what Blast Radius Zero means to us."</div>
+
+  <h2 id="limits">Honest limits</h2>
+  <ul style="color:#cfd9dc;max-width:860px">
+    <li>The 3D comes from <b>one photo</b> with an AI depth model, not LiDAR or multi-view. Measurements are estimates, <b>±25%</b>.</li>
+    <li>The aid portal and the scam site are <b>our own mocks</b>. The agent never touches a real government site.</li>
+    <li>Next steps: a multi-view scan from a phone video (script written, OpenDroneMap on Vultr CPU), rate limits and cost caps, login with per-session URLs.</li>
+  </ul>
+
+  <footer>Built during the hackathon, Sep 26–27 2026 · <a href="https://github.com/techadnank9/shltr">github.com/techadnank9/shltr</a></footer>
+</main>
+<script>
+fetch('/api/health').then((r) => r.json()).then((h) => {
+  const r = h.runner || {}, l = r.limits || {};
+  const cells = [
+    ['Status', `<span class="dot"></span>${h.ok && r.ok ? 'live' : 'degraded'}`],
+    ['Model', h.model || '—'],
+    ['Sandbox engine', r.microsandbox || '—'],
+    ['MicroVMs running now', r.sandboxes ?? '—'],
+    ['Per-microVM limits', l.cpus ? `${l.cpus} vCPU · ${Math.round(l.memory_mb / 1024)} GB · ${l.timeout_s}s` : '—'],
+    ['Default network', l.network || '—'],
+    ['Cases on this server', h.cases ?? '—'],
+  ];
+  document.getElementById('live').innerHTML = cells.map(([k, v]) => `<div class="stat"><span>${k}</span><b>${v}</b></div>`).join('');
+}).catch(() => { document.getElementById('live').innerHTML = '<div class="stat"><span>Status</span><b>unavailable</b></div>'; });
+</script>
+</body>
+</html>

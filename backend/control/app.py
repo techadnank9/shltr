@@ -287,6 +287,12 @@ async def start_page() -> FileResponse:
     return FileResponse(STATIC / "start.html")
 
 
+@app.get("/arch")
+async def arch_page() -> FileResponse:
+    """How the system is built, with live status from /api/health."""
+    return FileResponse(STATIC / "arch.html")
+
+
 @app.get("/capture")
 async def capture_page() -> FileResponse:
     """Guided walkthrough recorder for a phone. Uploads to /api/cases just as /start does."""
