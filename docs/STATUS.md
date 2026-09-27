@@ -8,10 +8,11 @@ Parts are defined in [PLAN.md](PLAN.md). Each part is one branch and one PR.
 
 | Part | Folder | Owner | Branch | State | Notes |
 |---|---|---|---|---|---|
-| 1 · Vultr connection check | `infra/` | Rikin | `rikin/part1-vultr-check` | In review | All checks pass: account reachable ($300 credit, $0 charged), glm-5.3 T1–T3 pass |
-| 2 · Photo to 3D room, on a laptop | `sandboxes/photo/` | Adnan | `adnan/part2-photo-to-3d` | Done, room test pending | Merged by Adnan without review. Offline run passes (~4 s); real-room photo test still to run |
-| 3 · Vultr servers, teardown, smoke tests T4–T8 | `infra/` | Unassigned | | Not started | After Part 1 |
+| 1 · Vultr connection check | `infra/` | Rikin | `rikin/part1-vultr-check` | Done | Merged in PR #2. Account reachable ($300 credit), glm-5.3 T1–T3 pass |
+| 2 · Photo to 3D room, on a laptop | `sandboxes/photo/` | Adnan | `adnan/part2-photo-to-3d` | Done | Merged in PR #3. Room test passed on Rikin's laptop: 33 s, network off, correct depth map (see log) |
+| 3 · Vultr servers, teardown, smoke tests | `infra/` | Rikin | `rikin/part3-vultr-servers` | In progress | provision.py and teardown.py written; dry run next, then create |
 | 4 · Photo sandbox in a microVM, runner | `sandboxes/`, `backend/runner/` | Unassigned | | Not started | After Parts 2 and 3 |
+| 5 · Front end: 3D scene on fake events | `frontend/` | Adnan | `adnan/part5-frontend` | Not started | Loads Part 2's `room.glb`; follows `docs/EVENTS.md` and `design/3d-mockup.html` |
 
 ## Later workstreams
 
@@ -28,6 +29,7 @@ States: Not started, In progress, Blocked, In review, Done.
 
 ## Log
 
+- **2026-09-27 · Rikin's agent:** Part 2 room test **passed**. Test image: a flooded living room generated with Vultr's `z-image-turbo` (1792x1024, test use only). Exact PLAN.md command (network none, read-only, 2 GB, 2 CPUs) on Docker Desktop, Windows x86_64: 33.5 s total, depth 1.34–8.67 m, median 4.84 m, 38,104 vertices, 74,520 faces. The depth map correctly separates the doorframe, floor, sofa and back wall. Note for Part 4: this is slower than the 4 s gradient test because it's a real image on 2 CPUs; expect faster on VM 2 with 4 CPUs. Part 5 (front end) assigned to Adnan.
 - **2026-09-27 · Adnan's agent:** Part 2 merged by Adnan without Rikin's review (PR #3): photo sandbox with Depth Anything V2 metric indoor small baked in; one photo in, `depth.png`, `room.glb` (metres, y up, -z forward) and `stats.json` out, with the network off, a read-only root and 2 GB. Offline run passes in ~4 s on a placeholder image; **real-room photo test still pending**.
 - **2026-09-27 · Rikin's agent:** Part 1 passed. `check_vultr.py` reads the account (credit $300, pending $0) and lists 44 Atlanta plans including VX1. `check_inference.py`: T1 chat, T2 image, T3 tool call all PASS on glm-5.3 (0.8 s, 4.4 s, 1.1 s). Added docs/VULTR.md with inference prices. PR opened.
 - **2026-09-27 · Rikin's agent:** Added PLAN.md. Work is split into small tested parts: Part 1 (Rikin, Vultr connection check) and Part 2 (Adnan, photo to 3D room in a no-network container) start now.
