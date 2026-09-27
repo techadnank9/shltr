@@ -17,8 +17,12 @@ open ShltrCapture.xcodeproj
 
 `ShltrCapture.xcodeproj` is generated and git-ignored, so two agents never conflict over Xcode's XML.
 
-Building for a device needs your Apple team: set it in **Signing & Capabilities**, or put it in
-`DEVELOPMENT_TEAM` in `project.yml`. To check it only compiles, no signing required:
+Signing is already set up: team **S2UTA2J3GD** (Nysa Chandna) and bundle id
+`com.nysachandna.shltrcapture`, which matches the **Sheltr Capture** record in App Store Connect
+and the registered App ID. Xcode's automatic signing creates the development and distribution
+certificates on first archive, so nothing has to be made by hand in the developer portal.
+
+To check it only compiles, no signing required:
 
 ```bash
 xcodebuild -project ShltrCapture.xcodeproj -scheme ShltrCapture -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO build
