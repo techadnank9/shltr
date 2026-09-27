@@ -119,6 +119,7 @@
   .chk.ok { color: var(--ok); border-color: rgba(79,214,156,.5); } .chk.no { color: var(--red); border-color: rgba(255,77,85,.5); }
   #approve-bar { margin-top: 12px; display: none; align-items: center; gap: 12px; padding: 12px 14px; background: var(--glass2); border: 1px solid var(--amber); border-radius: 8px; box-shadow: 0 0 40px rgba(242,163,58,.25); }
   #approve-bar.on { display: flex; }
+  #approve-bar [hidden] { display: none; }
   #approve-bar div { flex: 1; font-weight: 600; }
   #edit { position: absolute; left: calc(100% + 14px); top: 0; width: 290px; max-height: 100%; overflow: auto; display: none; padding: 12px 14px; background: rgba(12,22,27,.97); border: 1px solid var(--amber); border-radius: 8px; box-shadow: 0 0 40px rgba(242,163,58,.2); }
   #edit.on { display: block; }
@@ -177,8 +178,8 @@
   <div class="win"><div class="bar"><i></i><i></i><i></i><span class="url" id="burl">aid.shltr-demo.org/portal/</span><span class="sbx" id="bsbx"></span></div><img id="frame" alt="Live view of the sandboxed browser"></div>
   <div class="wcap" id="wcap">Agent working inside a sandboxed browser</div>
   <div id="checks"></div>
-  <div id="edit"><h4>REVIEW BEFORE SUBMIT</h4><p>This is what the agent typed. Fix anything, then approve. Your version is what gets submitted.</p><div id="edit-fields"></div></div>
-  <div id="approve-bar"><div id="appr-text"></div><button class="btn primary" id="approve">Approve and submit</button><button class="btn" id="decline">Not yet</button></div>
+  <div id="edit"><h4>✎ EDIT BEFORE SUBMIT</h4><p>This is what the agent typed. Click any field to change it, then press Approve. Your version is what gets submitted.</p><div id="edit-fields"></div></div>
+  <div id="approve-bar"><div id="appr-text"></div><button class="btn primary" id="approve">Approve and submit</button><button class="btn" id="decline">Not yet · keep draft</button><button class="btn primary" id="again" hidden>Review and edit again</button></div>
 </div>
 <div id="receipt"><span class="x" id="rx">✕</span><div class="muted" style="font:11px var(--mono);letter-spacing:.14em;color:var(--muted)">APPLICATION SUBMITTED</div><div class="id" id="rid"></div><small>Filed after your approval · browser sandbox destroyed</small></div>
 
@@ -306,7 +307,7 @@ function handle(e, live) {
       if (d.kind === 'photo') step('room', 'run');
       if (d.kind === 'report') step('report', 'run');
       if (d.kind === 'browser' && d.mode === 'inspect') step('link', 'run', 'Opening it in a sealed browser…');
-      if (d.kind === 'browser' && d.mode !== 'inspect') { browserRun++; $('receipt').classList.remove('on'); step('claim', 'run', d.mode === 'submit' ? 'Submitting after your approval' : 'Agent filling the form'); $('browser').classList.add('on'); $('bsbx').textContent = d.sandbox_id; $('checks').innerHTML = d.mode === 'fill' ? '' : $('checks').innerHTML; }
+      if (d.kind === 'browser' && d.mode !== 'inspect') { browserRun++; $('receipt').classList.remove('on'); $('approve-bar').classList.remove('on'); $('again').hidden = true; step('claim', 'run', d.mode === 'submit' ? 'Submitting after your approval' : 'Agent filling the form'); $('browser').classList.add('on'); $('bsbx').textContent = d.sandbox_id; $('checks').innerHTML = d.mode === 'fill' ? '' : $('checks').innerHTML; }
       break; }
     case 'sandbox.destroyed': {
       const p = pods[d.sandbox_id]; if (p) { p.classList.add('gone'); p.querySelector('.t').textContent = `destroyed · ${d.lifetime_s}s`; } break; }
@@ -346,12 +347,15 @@ function handle(e, live) {
       $('checks').insertAdjacentHTML('beforeend', `<span class="chk ${d.verified ? 'ok' : 'no'}" title="${d.note.replace(/"/g, '&quot;')}">${d.verified ? '✓' : '✗'} ${d.n}/${d.total} ${d.title}</span>`); break;
     case 'approval.needed':
       $('appr-text').textContent = `${d.summary} · ${money(d.amount_usd)}`; $('approve-bar').classList.add('on'); showEdit(d.fields || []);
-      $('approve').disabled = $('decline').disabled = false; step('claim', 'run', 'Waiting for your approval'); $('wcap').textContent = 'Paused before Submit · your call'; break;
+      $('approve').hidden = $('decline').hidden = false; $('again').hidden = true;
+      $('approve').disabled = $('decline').disabled = false; step('claim', 'run', 'Waiting for your approval'); if (live) setTimeout(() => $('edit-fields').querySelector('input')?.focus(), 300); $('wcap').textContent = 'Paused before Submit · your call'; break;
     case 'claim.edited':
       $('checks').insertAdjacentHTML('beforeend', d.fields.map((f) => `<span class="chk ok">✎ you changed ${esc(f.label)}: ${esc(f.new)}</span>`).join('')); break;
     case 'approval.result':
-      $('approve').disabled = $('decline').disabled = true; $('approve-bar').classList.remove('on'); $('edit').classList.remove('on');
-      if (!d.approved) { step('claim', 'done', 'Not sent · draft kept'); later(() => $('browser').classList.remove('on'), live ? 1200 : 0); } break;
+      $('approve').disabled = $('decline').disabled = true; $('edit').classList.remove('on');
+      if (d.approved) { $('approve-bar').classList.remove('on'); break; }
+      step('claim', 'done', 'Not sent · draft kept'); $('appr-text').textContent = 'Draft kept · nothing was sent. You can change anything and try again.';
+      $('approve').hidden = $('decline').hidden = true; $('again').hidden = false; $('again').disabled = false; break;
     case 'claim.submitted':
       step('claim', 'done', `Receipt ${d.receipt_id}`); $('rid').textContent = d.receipt_id;
       if (d.screenshot_url) $('frame').src = d.screenshot_url;
@@ -381,12 +385,14 @@ function showEdit(fields) {
   }
   $('edit').classList.toggle('on', fields.length > 0);
 }
-$('approve').onclick = () => {
+function currentEdits() {
   const edits = {};
   for (const i of $('edit-fields').querySelectorAll('input')) if (i.value !== i.dataset.orig) edits[i.dataset.key] = i.value;
-  ws.send(JSON.stringify({ type: 'approve', case_id: caseId, edits }));
-};
-$('decline').onclick = () => ws.send(JSON.stringify({ type: 'decline', case_id: caseId }));
+  return edits;
+}
+$('approve').onclick = () => ws.send(JSON.stringify({ type: 'approve', case_id: caseId, edits: currentEdits() }));
+$('decline').onclick = () => ws.send(JSON.stringify({ type: 'decline', case_id: caseId, edits: currentEdits() }));
+$('again').onclick = () => { $('again').disabled = true; $('appr-text').textContent = 'Reopening your draft in a fresh browser sandbox…'; fetch(`/api/cases/${caseId}/claim`, { method: 'POST' }); };
 $('rx').onclick = () => $('receipt').classList.remove('on');
 $('check').onclick = () => { shownThreats.clear(); $('threats').innerHTML = ''; $('verdict').innerHTML = ''; $('check').disabled = true; ws.send(JSON.stringify({ type: 'check_link', case_id: caseId, url: $('link').value })); };
 </script>
