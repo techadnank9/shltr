@@ -24,7 +24,12 @@ final class CaptureController: NSObject, ObservableObject {
     @Published private(set) var isComplete = false
     @Published var title = ""
 
-    let captureSession = RoomCaptureSession()
+    /// RoomCaptureView owns its own RoomCaptureSession, so the view is the thing that must be
+    /// created first and the session taken from it. Running a session we made ourselves would
+    /// leave the one on screen untouched. Built lazily: an unsupported phone never makes one.
+    lazy var roomView = RoomCaptureView(frame: .zero)
+    var captureSession: RoomCaptureSession { roomView.captureSession }
+
     private let coverage = CoverageEngine()
     private let recorder = WalkthroughRecorder()
     private var displayLink: CADisplayLink?

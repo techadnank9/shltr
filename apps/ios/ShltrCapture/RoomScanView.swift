@@ -1,16 +1,12 @@
 import RoomPlan
 import SwiftUI
 
-/// RoomPlan's own guided camera view, driven by the session the controller owns.
+/// RoomPlan's own guided camera view. The controller owns it, because the session that drives
+/// the scan belongs to the view, not the other way round.
 struct RoomScanView: UIViewRepresentable {
-    let session: RoomCaptureSession
+    let controller: CaptureController
 
-    func makeUIView(context: Context) -> RoomCaptureView {
-        // Handing it an existing session keeps one ARSession for the scan, the coverage
-        // engine and the video recorder alike.
-        let view = RoomCaptureView(frame: .zero, arSession: session.arSession)
-        return view
-    }
+    func makeUIView(context: Context) -> RoomCaptureView { controller.roomView }
 
     func updateUIView(_ uiView: RoomCaptureView, context: Context) {}
 }

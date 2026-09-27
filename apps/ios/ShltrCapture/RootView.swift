@@ -82,7 +82,7 @@ private struct ScanningView: View {
 
     var body: some View {
         ZStack {
-            RoomScanView(session: controller.captureSession).ignoresSafeArea()
+            RoomScanView(controller: controller).ignoresSafeArea()
             VStack {
                 HStack(alignment: .top) {
                     Text(controller.instruction)
