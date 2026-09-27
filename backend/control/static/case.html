@@ -66,6 +66,7 @@
   </div>
   <div class="row" style="margin-left:auto">
     <a id="open3d" href="#">Open the 3D room ↗</a>
+    <a href="/api/scans" id="scans" hidden>Real 3D scans ↗</a>
   </div>
 </header>
 
@@ -246,6 +247,7 @@ function connect() {
   ws.onclose = () => setTimeout(connect, 1500);
 }
 connect();
+fetch('/api/scans').then(r => r.json()).then(list => { if (list.length) { $('scans').href = `/scan/${list[0].name}`; $('scans').hidden = false; } }).catch(() => {});
 
 $('approve').onclick = () => ws.send(JSON.stringify({ type: 'approve', case_id: caseId }));
 $('decline').onclick = () => ws.send(JSON.stringify({ type: 'decline', case_id: caseId }));
