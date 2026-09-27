@@ -3,6 +3,11 @@
 # Safe to re-run.
 set -euo pipefail
 
+if [ "$(hostname)" != "shltr-vm1" ]; then
+  echo "Refusing to run: this is $(hostname), not shltr-vm1." >&2
+  exit 1
+fi
+
 # Host firewall: SSH (Vultr's firewall group already limits it to the admin IP) plus web.
 # Ubuntu's default ufw only allowed 22, so the app would be unreachable without this.
 ufw allow 22/tcp >/dev/null
