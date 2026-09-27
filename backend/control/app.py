@@ -122,7 +122,7 @@ async def create_case(file: UploadFile = File(...), title: str = Form(default=""
     cases[case.id] = case
     save_meta(case)
     asyncio.create_task(run_case(case, upload))
-    return {"case_id": case.id, "url": f"/?source=ws&case={case.id}"}
+    return {"case_id": case.id, "url": f"/case/{case.id}", "url_3d": f"/?source=ws&case={case.id}"}
 
 
 @app.get("/api/cases/{case_id}/events")
@@ -235,6 +235,13 @@ async def report_api(case_id: str) -> dict:
     case = get_case(case_id)
     asyncio.create_task(generate_report(case))
     return {"ok": True}
+
+
+@app.get("/case/{case_id}")
+async def case_page(case_id: str) -> FileResponse:
+    """Case control room: follows one case end to end, live."""
+    get_case(case_id)
+    return FileResponse(STATIC / "case.html")
 
 
 @app.get("/start")
