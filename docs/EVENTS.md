@@ -35,6 +35,7 @@ Every event has the same outer shape:
 | `damage.found` | `id, label, metric, cost_usd, position: [x, y, z]` | One damage item, position in `room.glb` coordinates (metres) |
 | `estimate.total` | `cost_usd, range_pct` | Totals updated |
 | `threat.contained` | `sandbox_id, kind ("prompt_injection", "download", "exfiltration", "timeout", "memory"), detail` | The sandbox blocked something |
+| `link.checked` | `url, verdict ("scam", "legitimate", "unsure" or "not_checked"), reasons: [..], advice, screenshot_url` | After a `check_link` request: the page was opened in a browser microVM and judged by the vision model. `threat.contained` events for that page come just before it |
 | `form.step` | `n, total, title, screenshot_url, verified (bool), note` | Each Pattern B step |
 | `approval.needed` | `summary, amount_usd` | Paused before submit |
 | `approval.result` | `approved (bool)` | Survivor answered |
