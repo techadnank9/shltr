@@ -14,6 +14,7 @@ Hackathon: Vultr Agent Arena 2026, track "Blast Radius Zero". Submissions are du
 
 | File | What it holds |
 |---|---|
+| [docs/PLAN.md](docs/PLAN.md) | The build split into small parts, each with an owner, a branch and a test |
 | [docs/STATUS.md](docs/STATUS.md) | Who is working on what, right now. Update it. |
 | [docs/DECISIONS.md](docs/DECISIONS.md) | Choices already made and why. Don't reopen them without asking. |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Components, flows and sandbox rules |

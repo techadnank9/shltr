@@ -21,6 +21,8 @@ __pycache__/
 *.pyc
 .venv/
 
-# Generated case data
+# Generated case data and local test material
 cases/
+test-photos/
+out/
 *.glb.tmp
