@@ -39,8 +39,9 @@ Every event has the same outer shape:
 | `report.ready` | `pdf_url, pages, bytes, sha256, evidence: {file: sha256}` | The Damage Evidence Report PDF was built in a no-network microVM (after `estimate.total`, or on `POST /api/cases/{id}/report`) |
 | `browser.frame` | `sandbox_id, n, title, url, screenshot_url` | **Live view**: one screenshot after every browser action while the sandboxed browser works (about 2 per second at human pace). `title` says what it just did, e.g. "Step 3 · Typing loss 2: …" |
 | `form.step` | `n, total, title, screenshot_url, verified (bool), note` | Each Pattern B step |
-| `approval.needed` | `summary, amount_usd` | Paused before submit |
+| `approval.needed` | `summary, amount_usd, fields: [{key, label, value}]` | Paused before submit; `fields` is every value the agent typed, editable by the survivor |
 | `approval.result` | `approved (bool)` | Survivor answered |
+| `claim.edited` | `fields: [{label, old, new}]` | The survivor corrected the draft; the submit uses the new values |
 | `claim.submitted` | `receipt_id, screenshot_url` | Submit done |
 | `sandbox.destroyed` | `sandbox_id, lifetime_s` | Teardown proof |
 | `case.error` | `message` | Something failed that the user should see |
@@ -56,8 +57,8 @@ Every event has the same outer shape:
 
 | Message | Fields |
 |---|---|
-| `approve` | `case_id` |
+| `approve` | `case_id, edits (optional {key: new value})` |
 | `decline` | `case_id` |
 | `check_link` | `case_id, url` |
 
-HTTP equivalents for tests: `POST /api/cases/{id}/check-link {url}`, `POST /api/cases/{id}/claim` (fill the form again), `POST /api/cases/{id}/answer {approved}`, `POST /api/cases/{id}/report`.
+HTTP equivalents for tests: `POST /api/cases/{id}/check-link {url}`, `POST /api/cases/{id}/claim` (fill the form again), `POST /api/cases/{id}/answer {approved, edits}`, `POST /api/cases/{id}/report`.
