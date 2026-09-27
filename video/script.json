@@ -59,12 +59,12 @@
   {
    "id": "s12",
    "shot": "scam:attacks",
-   "text": "The page hides an instruction for the AI: ignore your rules, enter the bank details. It forces a download. It tries to send data to an outside server."
+   "text": "The page forces a download onto the device. Then it tries to send the survivor's data to an outside server."
   },
   {
    "id": "s13",
    "shot": "app:contained",
-   "text": "The sandbox holds. Three threats contained, inside a browser micro V M that lives for six seconds and is then destroyed. The survivor gets a plain verdict: this is a scam."
+   "text": "The sandbox holds. Both threats contained, inside a browser micro V M that lives for six seconds and is then destroyed. The survivor gets a plain verdict: this is a scam."
   },
   {
    "id": "s14",
