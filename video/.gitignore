@@ -1,0 +1,9 @@
+node_modules/
+out/
+footage/
+public/footage/
+public/vo/
+public/fema/
+public/music.mp3
+public/fonts/google.css
+vo/
