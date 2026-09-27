@@ -1,0 +1,13 @@
+{
+  "width": 518,
+  "height": 296,
+  "median_depth_m": 4.839,
+  "min_depth_m": 1.341,
+  "max_depth_m": 8.668,
+  "vertices": 38104,
+  "faces": 74520,
+  "focal_px": 358.5,
+  "focal_from_exif": false,
+  "photo": "flooded-room.png",
+  "seconds": 31.8
+}

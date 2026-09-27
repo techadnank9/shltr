@@ -51,7 +51,26 @@ We build Shltr in small parts. Each part has one owner, one branch, a test that 
   Passes when it finishes in under 60 seconds with the network off, and `out/room.glb` opens in a glTF viewer (for example https://gltf-viewer.donmccurdy.com) and looks like the room.
 - Keep test photos and outputs out of git (`test-photos/` and `out/` are local only).
 
-## Design reference for both parts
+## Part 5 · Front end: the 3D case scene on fake events · owner: Adnan
+
+**Goal:** the cinematic front end from `design/3d-mockup.html`, rebuilt as a real app that loads a **real** `room.glb` and is driven only by the events in `docs/EVENTS.md`. The backend doesn't exist yet, so a fake event player feeds it. When the backend is ready, only the event source changes.
+
+- Branch: `adnan/part5-frontend`
+- Folder: `frontend/`
+- Build:
+  - A Vite + React + three.js (React Three Fiber, drei) app in `frontend/`.
+  - `frontend/src/events/fakeCase.ts`: a scripted list of events that follows `docs/EVENTS.md` exactly (envelope with `type`, `case_id`, `seq`, `ts`, `data`), covering one full case: `case.created` → `sandbox.started` → `log.line` → `depth.ready` → `code.attempt` (one failed try, then passed) → 4–6 × `damage.found` → `estimate.total` → `threat.contained` (fake aid website: prompt injection, download, exfiltration) → `form.step` × 4 → `approval.needed`.
+  - An event source interface with two implementations: the fake player (with timing) and a WebSocket client for `/ws/cases/{id}` (it can stay unused for now).
+  - Scene: loads `room.glb` from `depth.ready.glb_url`, places `damage.found` markers at `position` (metres, `room.glb` coordinates), shows the sandbox boundary and plays the containment effect on `threat.contained`. Includes the log panel, the damage ledger with a running total, and the approval panel with Approve / Not yet sending `approve` / `decline`.
+  - Use the sample room at `design/samples/flooded-room.glb` (real Part 2 output) as the fake `glb_url`.
+- Test:
+  ```
+  cd frontend && npm install && npm run dev
+  ```
+  Passes when a full fake case plays from start to finish without errors in the console, the real sample room renders and can be orbited, markers sit on the room's surfaces, and Approve changes the state. `npm run build` must also succeed.
+- Visual direction: follow `design/3d-mockup.html` (dark storm palette, amber accent, red for damage and alarms, Big Shoulders Display, IBM Plex Sans and Mono). Blender assets can come later in their own part.
+
+## Design reference
 
 - 3D front-end concept: [design/3d-mockup.html](../design/3d-mockup.html)
 - Architecture diagrams: [design/blueprint.html](../design/blueprint.html)
