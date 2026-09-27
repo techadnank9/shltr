@@ -1,0 +1,38 @@
+# XcodeGen spec. Generate the project with:  cd apps/ios && xcodegen generate
+# (brew install xcodegen). The project file itself is not committed, so two agents
+# never conflict over Xcode's own XML.
+name: ShltrCapture
+options:
+  bundleIdPrefix: app.shltr
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    MARKETING_VERSION: "0.1"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.9"
+    # Set this to your Apple team, or pick it in Xcode's Signing & Capabilities tab.
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+
+targets:
+  ShltrCapture:
+    type: application
+    platform: iOS
+    sources:
+      - path: ShltrCapture
+    info:
+      path: ShltrCapture/Info.plist
+      properties:
+        CFBundleDisplayName: Sheltr
+        UILaunchScreen: {}
+        UIRequiredDeviceCapabilities: [arkit]
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        NSCameraUsageDescription: Sheltr uses the camera and the depth sensor to rebuild your damaged room in 3D.
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.shltr.capture
+        TARGETED_DEVICE_FAMILY: "1"
