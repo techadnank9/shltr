@@ -1,0 +1,64 @@
+<!doctype html>
+<!-- Sheltr demo: portal confirmation page. Generates a display-only receipt number
+     on load (AID- + 6 digits). Stores nothing. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Application received · Regional Disaster Assistance Agency</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="styles.css">
+<style>
+  .receipt-card { text-align: center; }
+  .check { width: 56px; height: 56px; border-radius: 50%; background: #e4f2ea; color: var(--ok); display: grid; place-items: center; font-size: 30px; margin: 4px auto 12px; }
+  .receipt-number { font-family: var(--mono); font-size: 30px; font-weight: 500; color: var(--navy); letter-spacing: 0.04em; margin: 14px 0; }
+  .receipt-meta { color: var(--muted); font-size: 14px; }
+  .next-steps { text-align: left; max-width: 520px; margin: 22px auto 0; }
+</style>
+</head>
+<body>
+<div class="gov-banner">An official demonstration site of the Regional Disaster Assistance Agency (RDAA) — a fictional agency</div>
+<header class="masthead">
+  <div class="seal" aria-hidden="true">RDAA</div>
+  <div>
+    <h1>Regional Disaster Assistance Agency</h1>
+    <p>Disaster Assistance Application</p>
+  </div>
+</header>
+
+<main>
+  <section class="card receipt-card" id="receipt">
+    <div class="check" aria-hidden="true">✓</div>
+    <p class="step-heading">Application received</p>
+    <h2>Your application has been submitted</h2>
+    <p class="receipt-meta">Your confirmation number is</p>
+    <p class="receipt-number" id="receipt-number">AID-000000</p>
+    <p class="receipt-meta">Keep this number for your records. A caseworker will review your application.</p>
+    <div class="next-steps">
+      <h3>What happens next</h3>
+      <ul>
+        <li>A caseworker reviews your damage evidence and loss estimate.</li>
+        <li>You may be contacted at the phone number you provided.</li>
+        <li>No payment information is collected on this site.</li>
+      </ul>
+    </div>
+    <div class="actions" style="justify-content:center">
+      <a href="index.html"><button type="button" class="ghost" id="start-over">Start a new application</button></a>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  Regional Disaster Assistance Agency (RDAA) is a fictional agency created for the Sheltr project demonstration.
+  This confirmation number is randomly generated for display only and is not stored anywhere.
+</footer>
+
+<script>
+  // Display-only receipt number: AID- + 6 digits. Nothing is stored.
+  var n = Math.floor(100000 + Math.random() * 900000);
+  document.getElementById("receipt-number").textContent = "AID-" + n;
+</script>
+</body>
+</html>
