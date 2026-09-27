@@ -34,8 +34,9 @@ Every event has the same outer shape:
 | `code.attempt` | `attempt, code, status ("running", "failed", "passed"), stderr?` | Each Pattern A try |
 | `damage.found` | `id, label, metric, cost_usd, position: [x, y, z]` | One damage item, position in `room.glb` coordinates (metres) |
 | `estimate.total` | `cost_usd, range_pct` | Totals updated |
-| `threat.contained` | `sandbox_id, kind ("prompt_injection", "download", "exfiltration", "timeout", "memory"), detail` | The sandbox blocked something |
+| `threat.contained` | `sandbox_id, kind ("download", "exfiltration", "timeout", "memory"), detail` | The sandbox blocked something |
 | `link.checked` | `url, verdict ("scam", "legitimate", "unsure" or "not_checked"), reasons: [..], advice, screenshot_url` | After a `check_link` request: the page was opened in a browser microVM and judged by the vision model. `threat.contained` events for that page come just before it |
+| `report.ready` | `pdf_url, pages, bytes, sha256, evidence: {file: sha256}` | The Damage Evidence Report PDF was built in a no-network microVM (after `estimate.total`, or on `POST /api/cases/{id}/report`) |
 | `form.step` | `n, total, title, screenshot_url, verified (bool), note` | Each Pattern B step |
 | `approval.needed` | `summary, amount_usd` | Paused before submit |
 | `approval.result` | `approved (bool)` | Survivor answered |

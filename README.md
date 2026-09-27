@@ -12,7 +12,7 @@ Built for the Vultr Agent Arena Hackathon 2026, track **Blast Radius Zero: Safe 
 - **VM 2, sandbox host (Vultr VX1):** runs each task in a sandbox that is destroyed afterwards.
   - Photo sandbox (Microsandbox microVM): depth model, 3D reconstruction, and agent-written measuring code with a visible retry loop.
   - Browser sandbox (Playwright in a gVisor container): fills in the aid form, with a vision check on every screenshot and an approval step before submit.
-- **Containment:** a fake aid website tries prompt injection, a forced download and data theft. The sandbox holds, and the survivor is warned.
+- **Containment:** a fake aid website tries a forced malware download and data theft. The sandbox holds, and the survivor is warned.
 
 Full diagrams: [design/blueprint.html](design/blueprint.html). Visual concept: [design/3d-mockup.html](design/3d-mockup.html).
 
