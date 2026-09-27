@@ -175,9 +175,7 @@ async def case_socket(ws: WebSocket, case_id: str) -> None:
         while True:
             msg = await ws.receive_json()
             if msg.get("type") in ("approve", "decline"):
-                approved = msg["type"] == "approve"
-                case.emit("approval.result", approved=approved)
-                case.answer.put_nowait(approved)
+                answer(case, msg["type"] == "approve", msg.get("edits"))
             elif msg.get("type") == "check_link":
                 asyncio.create_task(check_link(case, str(msg.get("url", ""))[:500]))
     except (WebSocketDisconnect, RuntimeError, ValueError):
@@ -222,11 +220,15 @@ async def claim_api(case_id: str) -> dict:
 @app.post("/api/cases/{case_id}/answer")
 async def answer_api(case_id: str, body: dict) -> dict:
     """Same as the WebSocket's approve / decline messages."""
-    case = get_case(case_id)
-    approved = bool(body.get("approved"))
-    case.emit("approval.result", approved=approved)
-    case.answer.put_nowait(approved)
+    answer(get_case(case_id), bool(body.get("approved")), body.get("edits"))
     return {"ok": True}
+
+
+def answer(case: Case, approved: bool, edits) -> None:
+    """The survivor's answer to approval.needed, with any fields they corrected in the draft."""
+    edits = {str(k)[:40]: str(v)[:80] for k, v in edits.items()} if isinstance(edits, dict) else {}
+    case.emit("approval.result", approved=approved)
+    case.answer.put_nowait({"approved": approved, "edits": edits})
 
 
 @app.post("/api/cases/{case_id}/report")
@@ -420,6 +422,25 @@ def claim_steps(case: Case) -> list[dict]:
             {"title": "Losses", "actions": step3}, {"title": "Review", "actions": step4}]
 
 
+def apply_edits(steps: list[dict], edits: dict) -> list[dict]:
+    """Put the survivor's corrections into the form plan. Only fields the agent filled can change;
+    costs stay whole dollars. Returns what changed."""
+    changed = []
+    for st in steps:
+        for a in st["actions"]:
+            if "fill" not in a or a["fill"] not in edits:
+                continue
+            new = " ".join(edits[a["fill"]].split())
+            if a["fill"].startswith("#loss-cost-"):
+                new = re.sub(r"[^0-9]", "", new.split(".")[0])[:7]
+                if not new:
+                    continue
+            if new != a["value"]:
+                changed.append({"label": a["label"], "old": a["value"], "new": new})
+                a["value"] = new
+    return changed
+
+
 async def browse_with_frames(case: Case, task: dict) -> tuple[dict | None, str | None]:
     """Run a browser task, streaming its live frames to the case. Returns (report, job id)."""
     report, job = None, None
@@ -468,12 +489,18 @@ async def file_claim(case: Case) -> None:
         while not case.answer.empty():  # ignore any answer given before the question was asked
             case.answer.get_nowait()
         items = sum(1 for e in case.events if e["type"] == "damage.found")
+        fields = [{"key": a["fill"], "label": a["label"], "value": a["value"]}
+                  for st in steps for a in st["actions"] if "fill" in a]
         case.emit("approval.needed", summary=f"Submit the aid application for {case.title} with {items} loss items?",
-                  amount_usd=total)
-        approved = await case.answer.get()
-        if not approved:
+                  amount_usd=total, fields=fields)
+        reply = await case.answer.get()
+        if not reply["approved"]:
             case.log("you chose not to submit · the draft stays here, nothing was sent")
             return
+        changed = apply_edits(steps, reply["edits"])
+        if changed:
+            case.emit("claim.edited", fields=changed)
+            case.log(f"you corrected {', '.join(c['label'] for c in changed)} · submitting with your changes")
         case.log("approved · submitting in a fresh browser microVM")
         report, job = await browse_with_frames(case, {**task, "mode": "submit"})
         if not report or not report.get("receipt_id"):
