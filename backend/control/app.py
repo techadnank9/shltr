@@ -87,6 +87,8 @@ def get_case(case_id: str) -> Case:
         case = Case(case_id, meta.get("title", ""))
         case.recon_job = meta.get("recon_job")
         case.jobs = set(meta.get("jobs", []))
+        case.applicant = meta.get("applicant") or recovered_applicant(case_id)
+        case.draft_edits = meta.get("draft_edits") or {}
         case.events =[json.loads(line) for line in (CASES / case_id / "events.jsonl").read_text().splitlines() if line]
         case.photo_ready.set()
         cases[case_id] = case
@@ -95,8 +97,19 @@ def get_case(case_id: str) -> Case:
     return case
 
 
+def recovered_applicant(case_id: str) -> dict:
+    """Cases saved before the applicant was stored: take it from the first draft's fields."""
+    for line in (CASES / case_id / "events.jsonl").read_text().splitlines():
+        if '"approval.needed"' in line:
+            fields = {f["label"]: f["value"] for f in json.loads(line)["data"].get("fields", [])}
+            return {"name": fields.get("name", ""), "phone": fields.get("phone", "")}
+    return {}
+
+
 def save_meta(case: Case) -> None:
-    (case.dir / "case.json").write_text(json.dumps({"title": case.title, "recon_job": case.recon_job, "jobs": sorted(case.jobs)}))
+    (case.dir / "case.json").write_text(json.dumps({"title": case.title, "recon_job": case.recon_job, "jobs": sorted(case.jobs),
+                                                    "applicant": getattr(case, "applicant", {}),
+                                                    "draft_edits": getattr(case, "draft_edits", {})}))
 
 
 # ---------------------------------------------------------------- HTTP API
@@ -471,6 +484,7 @@ async def file_claim(case: Case) -> None:
     vision model, pause for the survivor's approval, then submit in a fresh microVM."""
     try:
         steps = claim_steps(case)
+        apply_edits(steps, getattr(case, "draft_edits", {}))  # a reopened draft keeps the survivor's changes
         total = next((e["data"]["cost_usd"] for e in reversed(case.events) if e["type"] == "estimate.total"), 0)
         task = {"mode": "fill", "url": f"http://{PORTAL_HOST}/portal/", "host_map": {PORTAL_HOST: SITES_TARGET},
                 "steps": steps, "stop_before": "#submit-application"}
@@ -501,8 +515,12 @@ async def file_claim(case: Case) -> None:
                   amount_usd=total, fields=fields)
         reply = await case.answer.get()
         if not reply["approved"]:
-            case.log("you chose not to submit · the draft stays here, nothing was sent")
+            case.draft_edits = {**getattr(case, "draft_edits", {}), **reply["edits"]}
+            save_meta(case)
+            case.log("not sent · your draft and your changes are kept; press Review and edit again to reopen it")
             return
+        case.draft_edits = {**getattr(case, "draft_edits", {}), **reply["edits"]}
+        save_meta(case)
         changed = apply_edits(steps, reply["edits"])
         if changed:
             case.emit("claim.edited", fields=changed)
