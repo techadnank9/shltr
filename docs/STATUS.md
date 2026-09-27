@@ -15,7 +15,7 @@ Parts are defined in [PLAN.md](PLAN.md). Each part is one branch and one PR.
 | Photo quality + FEMA dataset | `sandboxes/photo/`, `datasets/` | Rikin's helper agent | `rikin/photo-quality` | Done | Large depth model, photo texture, 7x denser mesh, sanitized `photo.jpg`; 5 public-domain FEMA interiors in `datasets/`. `shltr-photo:latest` on VM 2 updated; runner test 11/11 |
 | 6 · Control plane on VM 1 | `backend/control/` | Rikin | `rikin/part6-control` | Done | **Live at https://45-76-251-95.sslip.io** (`/start` to upload). Real FEMA photo end to end in 38 s: 3D room, 6 damage items from glm-5.3, Pattern A code passed, $2,510 estimate, both sandboxes destroyed (E1–E7 pass) |
 | 5 · Front end: 3D scene on fake events | `frontend/` | Adnan | `adnan/part5-frontend` | Done | Merged (PR #7). Vite + React + R3F on the EVENTS.md contract; fake player plays the whole case with the real `room.glb`; `?source=ws` ready for the control plane. Build verified on Rikin's laptop |
-| 7a · Mock aid portal and fake scam site | `sites/` | Adnan | `adnan/part7a-portal-and-scam-site` | Next for Adnan | Plain HTML; spec in PLAN.md |
+| 7a · Mock aid portal and fake scam site | `sites/` | Adnan | `adnan/part7a-portal-and-scam-site` | In progress | Plain HTML; building the portal and the containment-test scam page |
 
 ## Later workstreams
 
