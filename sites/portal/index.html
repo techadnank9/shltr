@@ -1,0 +1,156 @@
+<!doctype html>
+<!-- Sheltr demo: mock disaster-aid portal. A FICTIONAL agency (not FEMA or any real agency).
+     This is a safe, believable target for the Sheltr browser agent. It stores nothing:
+     no backend, no localStorage, no network requests. Submit just shows receipt.html. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Disaster Assistance Application · Regional Disaster Assistance Agency</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="gov-banner">An official demonstration site of the Regional Disaster Assistance Agency (RDAA) — a fictional agency</div>
+<header class="masthead">
+  <div class="seal" aria-hidden="true">RDAA</div>
+  <div>
+    <h1>Regional Disaster Assistance Agency</h1>
+    <p>Disaster Assistance Application</p>
+  </div>
+</header>
+
+<main>
+  <ol class="progress" id="progress">
+    <li data-step="1">1 · Applicant</li>
+    <li data-step="2">2 · Property &amp; damage</li>
+    <li data-step="3">3 · Losses</li>
+    <li data-step="4">4 · Review</li>
+  </ol>
+
+  <form id="application" autocomplete="off" novalidate>
+    <!-- STEP 1 -->
+    <section class="card step" id="step-1" data-step="1">
+      <p class="step-heading">Step 1 of 4 · Applicant</p>
+      <h2>Who is applying?</h2>
+      <div class="field">
+        <label for="applicant-name">Full legal name</label>
+        <input type="text" id="applicant-name" name="applicant_name" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="applicant-phone">Phone number</label>
+        <input type="tel" id="applicant-phone" name="applicant_phone" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="applicant-address">Damaged property address</label>
+        <textarea id="applicant-address" name="applicant_address" autocomplete="off"></textarea>
+      </div>
+      <div class="actions">
+        <span></span>
+        <button type="button" class="primary" id="to-step-2">Continue</button>
+      </div>
+    </section>
+
+    <!-- STEP 2 -->
+    <section class="card step" id="step-2" data-step="2" hidden>
+      <p class="step-heading">Step 2 of 4 · Property &amp; damage</p>
+      <h2>What happened to the property?</h2>
+      <div class="field">
+        <label for="damage-type">Primary cause of damage</label>
+        <select id="damage-type" name="damage_type">
+          <option value="">Select one…</option>
+          <option value="flood">Flood</option>
+          <option value="hurricane">Hurricane / high wind</option>
+          <option value="storm-surge">Storm surge</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="water-height">Peak water height inside the home <span class="hint">(inches above the floor)</span></label>
+        <input type="number" id="water-height" name="water_height" min="0" step="1">
+      </div>
+      <div class="field">
+        <label for="evidence-upload">Upload photos and your 3D room file <span class="hint">(JPG, PNG, or room.glb)</span></label>
+        <input type="file" id="evidence-upload" name="evidence" accept=".jpg,.jpeg,.png,.glb" multiple>
+      </div>
+      <div class="actions">
+        <button type="button" class="ghost" id="to-step-1">Back</button>
+        <button type="button" class="primary" id="to-step-3">Continue</button>
+      </div>
+    </section>
+
+    <!-- STEP 3 -->
+    <section class="card step" id="step-3" data-step="3" hidden>
+      <p class="step-heading">Step 3 of 4 · Losses</p>
+      <h2>List your losses</h2>
+      <table class="losses">
+        <thead>
+          <tr><th>Item</th><th>Estimated cost (USD)</th></tr>
+        </thead>
+        <tbody id="loss-rows">
+          <tr>
+            <td><input type="text" id="loss-item-1" name="loss_item_1" aria-label="Loss item 1"></td>
+            <td class="cost"><input type="number" id="loss-cost-1" name="loss_cost_1" min="0" step="1" aria-label="Loss cost 1"></td>
+          </tr>
+          <tr>
+            <td><input type="text" id="loss-item-2" name="loss_item_2" aria-label="Loss item 2"></td>
+            <td class="cost"><input type="number" id="loss-cost-2" name="loss_cost_2" min="0" step="1" aria-label="Loss cost 2"></td>
+          </tr>
+          <tr>
+            <td><input type="text" id="loss-item-3" name="loss_item_3" aria-label="Loss item 3"></td>
+            <td class="cost"><input type="number" id="loss-cost-3" name="loss_cost_3" min="0" step="1" aria-label="Loss cost 3"></td>
+          </tr>
+        </tbody>
+      </table>
+      <button type="button" class="ghost" id="add-loss">+ Add another item</button>
+      <div class="total-row">
+        <span>Total estimated loss</span>
+        <strong id="loss-total">$0</strong>
+      </div>
+      <div class="actions">
+        <button type="button" class="ghost" id="to-step-2b">Back</button>
+        <button type="button" class="primary" id="to-step-4">Continue</button>
+      </div>
+    </section>
+
+    <!-- STEP 4 -->
+    <section class="card step" id="step-4" data-step="4" hidden>
+      <p class="step-heading">Step 4 of 4 · Review &amp; submit</p>
+      <h2>Review your application</h2>
+      <div class="review">
+        <h3>Applicant</h3>
+        <dl>
+          <dt>Full legal name</dt><dd id="review-name">—</dd>
+          <dt>Phone number</dt><dd id="review-phone">—</dd>
+          <dt>Property address</dt><dd id="review-address">—</dd>
+        </dl>
+        <h3>Property &amp; damage</h3>
+        <dl>
+          <dt>Cause of damage</dt><dd id="review-damage">—</dd>
+          <dt>Peak water height</dt><dd id="review-water">—</dd>
+          <dt>Evidence files</dt><dd id="review-evidence">—</dd>
+        </dl>
+        <h3>Losses</h3>
+        <dl>
+          <dt>Items listed</dt><dd id="review-items">—</dd>
+          <dt>Total estimated loss</dt><dd id="review-total">$0</dd>
+        </dl>
+      </div>
+      <div class="actions">
+        <button type="button" class="ghost" id="to-step-3b">Back</button>
+        <button type="submit" class="primary" id="submit-application">Submit application</button>
+      </div>
+    </section>
+  </form>
+</main>
+
+<footer class="site-footer">
+  Regional Disaster Assistance Agency (RDAA) is a fictional agency created for the Sheltr project demonstration.
+  This form is not connected to any government service and does not collect or store any information.
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
