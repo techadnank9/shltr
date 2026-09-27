@@ -15,7 +15,6 @@ const CAPTIONS: Record<string, [string, string]> = {
 }
 
 const KINDS: [ThreatKind, string][] = [
-  ['prompt_injection', 'Prompt injection'],
   ['download', 'Forced download'],
   ['exfiltration', 'Data theft'],
 ]
