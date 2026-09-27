@@ -11,8 +11,9 @@ Parts are defined in [PLAN.md](PLAN.md). Each part is one branch and one PR.
 | 1 · Vultr connection check | `infra/` | Rikin | `rikin/part1-vultr-check` | Done | Merged in PR #2. Account reachable ($300 credit), glm-5.3 T1–T3 pass |
 | 2 · Photo to 3D room, on a laptop | `sandboxes/photo/` | Adnan | `adnan/part2-photo-to-3d` | Done | Merged in PR #3. Room test passed on Rikin's laptop: 33 s, network off, correct depth map (see log) |
 | 3 · Vultr servers, teardown, smoke tests | `infra/` | Rikin | `rikin/part3-vultr-servers` | In review | **Servers are live** (about $0.18/hour). Smoke tests T4, T5, T7: 8/8 pass. See `infra/README.md` |
-| 4 · Photo sandbox in a microVM, runner | `sandboxes/`, `backend/runner/` | Unassigned | | Not started | After Parts 2 and 3 |
-| 5 · Front end: 3D scene on fake events | `frontend/` | Adnan | `adnan/part5-frontend` | Not started | Loads Part 2's `room.glb`; follows `docs/EVENTS.md` and `design/3d-mockup.html` |
+| 4 · Photo and video sandbox in a microVM, runner | `sandboxes/`, `backend/runner/` | Rikin | `rikin/part4-runner` | In progress | Adds video (frames extracted inside the sandbox) |
+| 5 · Front end: 3D scene on fake events | `frontend/` | Adnan | `adnan/part5-frontend` | In progress | Loads Part 2's `room.glb`; follows `docs/EVENTS.md` and `design/3d-mockup.html` |
+| 7a · Mock aid portal and fake scam site | `sites/` | Adnan | `adnan/part7a-portal-and-scam-site` | Next for Adnan | Plain HTML; spec in PLAN.md |
 
 ## Later workstreams
 
