@@ -102,7 +102,33 @@ def inspect(page, task: dict, report: dict) -> None:
         f"{len(report['downloads'])} downloads")
 
 
+FRAME = {"n": 0}
+
+
+def frame(page, title: str) -> str:
+    """Live view: a screenshot after every action plus a progress line. The runner watches
+    /out while the browser runs and streams each new frame to the survivor's screen."""
+    FRAME["n"] += 1
+    n = FRAME["n"]
+    file = shot(page, n, "frame")
+    with (OUT / "progress.jsonl").open("a") as fh:
+        fh.write(json.dumps({"n": n, "title": title, "file": file, "url": page.url}) + "\n")
+    return file
+
+
+def describe(action: dict) -> str:
+    for key, verb in (("fill", "Typing"), ("select", "Choosing"), ("upload", "Attaching"), ("click", "Clicking"), ("check", "Ticking")):
+        if key in action:
+            what = action.get("label") or action[key]
+            return f"{verb} {what}" + (f": {action['value']}" if key in ("fill", "select") and action.get("value") else "")
+    return "Working"
+
+
 def run_action(page, action: dict) -> None:
+    if "ensure" in action:  # add a table row if it isn't there yet
+        if page.locator(action["ensure"]).count() == 0:
+            page.click(action["add"], timeout=8000)
+        return
     if "fill" in action:
         page.fill(action["fill"], str(action.get("value", "")), timeout=8000)
     elif "select" in action:
@@ -110,7 +136,8 @@ def run_action(page, action: dict) -> None:
     elif "check" in action:
         page.check(action["check"], timeout=8000)
     elif "upload" in action:
-        page.set_input_files(action["upload"], str(IN / Path(action["file"]).name), timeout=8000)
+        files = action["file"] if isinstance(action["file"], list) else [action["file"]]
+        page.set_input_files(action["upload"], [str(IN / Path(f).name) for f in files if (IN / Path(f).name).exists()], timeout=8000)
     elif "click" in action:
         page.click(action["click"], timeout=8000)
         page.wait_for_load_state("load")
@@ -118,32 +145,48 @@ def run_action(page, action: dict) -> None:
         raise ValueError(f"unknown action {action}")
 
 
-def fill(page, task: dict, report: dict) -> None:
+def run_steps(page, task: dict, report: dict, stop: str | None) -> None:
     page.goto(task["url"], wait_until="load", timeout=30000)
-    stop = task.get("stop_before")
+    frame(page, "Opened the aid portal")
+    pace = int(task.get("pace_ms", 400))  # human pace, so the live view is watchable
     for n, step in enumerate(task["steps"], 1):
+        captured = False
         for action in step["actions"]:
+            if "click" in action and not captured:
+                # The step's evidence shot is taken before it is left (its Continue / Submit click).
+                report["screenshots"].append({"title": step.get("title", f"Step {n}"), "file": shot(page, 50 + n, "step"),
+                                              "url": page.url, "heading": page.inner_text("body")[:300]})
+                captured = True
             if stop and action.get("click") == stop:
                 break
             run_action(page, action)
-        page.wait_for_timeout(400)
-        report["screenshots"].append({"title": step.get("title", f"Step {n}"), "file": shot(page, n, "step"),
-                                      "url": page.url, "heading": page.inner_text("body")[:300]})
+            if "ensure" not in action:
+                page.wait_for_timeout(pace)
+                frame(page, f"Step {n} · {describe(action)}")
+        if not captured:
+            report["screenshots"].append({"title": step.get("title", f"Step {n}"), "file": shot(page, 50 + n, "step"),
+                                          "url": page.url, "heading": page.inner_text("body")[:300]})
         log(f"step {n} done: {step.get('title', '')}")
+
+
+def fill(page, task: dict, report: dict) -> None:
+    stop = task.get("stop_before")
+    run_steps(page, task, report, stop)
     report["paused_before"] = stop
     report["final_url"] = page.url
-    page.context.storage_state(path=str(OUT / "state.json"))
+    frame(page, "Paused before Submit · waiting for your approval")
 
 
 def submit(page, task: dict, report: dict) -> None:
-    page.goto(task["url"], wait_until="load", timeout=30000)
-    page.click(task["click"], timeout=8000)
-    page.wait_for_load_state("load")
-    page.wait_for_timeout(800)
+    """After approval: replay the same steps in a fresh microVM (the portal keeps no state), then submit."""
+    run_steps(page, task, report, None)
     report["final_url"] = page.url
     report["visible_text"] = page.inner_text("body")[:2000]
-    report["screenshots"].append({"title": "Receipt", "file": shot(page, 1, "receipt")})
-    log("submitted")
+    receipt = page.locator("#receipt-number")
+    report["receipt_id"] = receipt.inner_text().strip() if receipt.count() else ""
+    report["screenshots"].append({"title": "Receipt", "file": shot(page, 90, "receipt")})
+    frame(page, f"Submitted · receipt {report['receipt_id']}")
+    log(f"submitted, receipt {report['receipt_id']}")
 
 
 def main() -> None:

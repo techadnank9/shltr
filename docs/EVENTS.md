@@ -37,6 +37,7 @@ Every event has the same outer shape:
 | `threat.contained` | `sandbox_id, kind ("download", "exfiltration", "timeout", "memory"), detail` | The sandbox blocked something |
 | `link.checked` | `url, verdict ("scam", "legitimate", "unsure" or "not_checked"), reasons: [..], advice, screenshot_url` | After a `check_link` request: the page was opened in a browser microVM and judged by the vision model. `threat.contained` events for that page come just before it |
 | `report.ready` | `pdf_url, pages, bytes, sha256, evidence: {file: sha256}` | The Damage Evidence Report PDF was built in a no-network microVM (after `estimate.total`, or on `POST /api/cases/{id}/report`) |
+| `browser.frame` | `sandbox_id, n, title, url, screenshot_url` | **Live view**: one screenshot after every browser action while the sandboxed browser works (about 2 per second at human pace). `title` says what it just did, e.g. "Step 3 · Typing loss 2: …" |
 | `form.step` | `n, total, title, screenshot_url, verified (bool), note` | Each Pattern B step |
 | `approval.needed` | `summary, amount_usd` | Paused before submit |
 | `approval.result` | `approved (bool)` | Survivor answered |
@@ -58,3 +59,5 @@ Every event has the same outer shape:
 | `approve` | `case_id` |
 | `decline` | `case_id` |
 | `check_link` | `case_id, url` |
+
+HTTP equivalents for tests: `POST /api/cases/{id}/check-link {url}`, `POST /api/cases/{id}/claim` (fill the form again), `POST /api/cases/{id}/answer {approved}`, `POST /api/cases/{id}/report`.

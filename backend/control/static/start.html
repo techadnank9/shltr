@@ -38,6 +38,12 @@
     <label>Address or name for this room
       <input type="text" id="title" name="title" placeholder="14 Alder Lane, ground floor" maxlength="80">
     </label>
+    <label>Your name (for the aid application)
+      <input type="text" id="name" name="name" placeholder="Maria Lopez" maxlength="80">
+    </label>
+    <label>Phone (optional)
+      <input type="text" id="phone" name="phone" placeholder="(555) 010-2847" maxlength="30">
+    </label>
     <div class="drop" id="drop" tabindex="0" role="button" aria-label="Choose a photo or video">
       <span id="picked">Choose a photo or video</span>
       <small>JPG, PNG, HEIC, MP4 or MOV · up to 100 MB</small>
@@ -72,6 +78,8 @@
     const body = new FormData();
     body.append('file', f);
     body.append('title', $('title').value);
+    body.append('name', $('name').value);
+    body.append('phone', $('phone').value);
     try {
       const r = await fetch('/api/cases', { method: 'POST', body });
       const data = await r.json();
