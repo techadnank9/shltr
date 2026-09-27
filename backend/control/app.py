@@ -20,6 +20,7 @@ import secrets
 import time
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 
 import httpx
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
@@ -36,6 +37,12 @@ STATIC = Path(__file__).with_name("static")
 MAX_UPLOAD = 100 * 1024 * 1024
 MEDIA_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".mp4", ".mov", ".m4v", ".webm"}
 CASE_ID = re.compile(r"^c_[a-z0-9]{8}$")
+JOB_ID = re.compile(r"^[a-z0-9]{12}$")
+SHOT_PATH = re.compile(r"^shots/\d{2}-[a-z]+\.png$")
+# Our demo sites on VM 1's private address. Lookalike domains are mapped to it inside the browser
+# sandbox, so the address bar shows the realistic name while nothing leaves our network.
+SITES_TARGET = os.environ.get("SITES_TARGET", "10.40.0.3:8080")
+DEMO_HOSTS = {"disaster-relief-claims.help", "relief-payments.help", "aid.shltr-demo.org"}
 FILE_PATH = re.compile(r"^(room\.glb|depth\.png|photo\.jpg|stats\.json|frames/frame_\d{2}\.jpg)$")
 
 app = FastAPI(title="shltr-control")
@@ -49,6 +56,7 @@ class Case:
         self.events: list[dict] = []
         self.listeners: set[asyncio.Queue] = set()
         self.recon_job: str | None = None
+        self.jobs: set[str] = set()  # browser jobs whose screenshots this case may serve
         self.photo_ready = asyncio.Event()
         self.answer: asyncio.Queue = asyncio.Queue()
 
@@ -78,7 +86,8 @@ def get_case(case_id: str) -> Case:
         meta = json.loads((CASES / case_id / "case.json").read_text())
         case = Case(case_id, meta.get("title", ""))
         case.recon_job = meta.get("recon_job")
-        case.events = [json.loads(line) for line in (CASES / case_id / "events.jsonl").read_text().splitlines() if line]
+        case.jobs = set(meta.get("jobs", []))
+        case.events =[json.loads(line) for line in (CASES / case_id / "events.jsonl").read_text().splitlines() if line]
         case.photo_ready.set()
         cases[case_id] = case
     if case is None:
@@ -87,7 +96,7 @@ def get_case(case_id: str) -> Case:
 
 
 def save_meta(case: Case) -> None:
-    (case.dir / "case.json").write_text(json.dumps({"title": case.title, "recon_job": case.recon_job}))
+    (case.dir / "case.json").write_text(json.dumps({"title": case.title, "recon_job": case.recon_job, "jobs": sorted(case.jobs)}))
 
 
 # ---------------------------------------------------------------- HTTP API
@@ -167,11 +176,33 @@ async def case_socket(ws: WebSocket, case_id: str) -> None:
                 approved = msg["type"] == "approve"
                 case.emit("approval.result", approved=approved)
                 case.answer.put_nowait(approved)
+            elif msg.get("type") == "check_link":
+                asyncio.create_task(check_link(case, str(msg.get("url", ""))[:500]))
     except (WebSocketDisconnect, RuntimeError, ValueError):
         pass
     finally:
         sender.cancel()
         case.listeners.discard(queue)
+
+
+@app.post("/api/cases/{case_id}/check-link")
+async def check_link_api(case_id: str, body: dict) -> dict:
+    """Same as the WebSocket's check_link message; used by tests."""
+    case = get_case(case_id)
+    asyncio.create_task(check_link(case, str(body.get("url", ""))[:500]))
+    return {"ok": True}
+
+
+@app.get("/api/cases/{case_id}/jobs/{job_id}/files/{path:path}")
+async def job_file(case_id: str, job_id: str, path: str) -> Response:
+    case = get_case(case_id)
+    if not JOB_ID.match(job_id) or job_id not in case.jobs or not SHOT_PATH.match(path):
+        raise HTTPException(status_code=404)
+    async with httpx.AsyncClient(timeout=30) as client:
+        r = await client.get(f"{RUNNER}/jobs/{job_id}/files/{path}", headers=RUNNER_AUTH)
+    if r.status_code != 200:
+        raise HTTPException(status_code=404)
+    return Response(r.content, media_type="image/png", headers={"X-Content-Type-Options": "nosniff"})
 
 
 @app.get("/start")
@@ -258,6 +289,59 @@ async def run_case(case: Case, upload: Path) -> None:
     except Exception as err:  # noqa: BLE001 - every failure must reach the survivor's screen
         case.photo_ready.set()
         case.emit("case.error", message=f"Something went wrong on our side: {err}"[:300])
+
+
+async def check_link(case: Case, url: str) -> None:
+    """Pattern B containment: open a suspicious link in a throwaway browser microVM, report every
+    attack it tried as threat.contained, then let the vision model judge the page."""
+    try:
+        parsed = urlparse(url if "://" in url else f"http://{url}")
+        host = (parsed.hostname or "").lower()
+        if host not in DEMO_HOSTS:
+            case.emit("link.checked", url=url, verdict="not_checked",
+                      reasons=["This demo only opens our own demo links, never real outside sites."], advice="", screenshot_url=None)
+            return
+        target = f"http://{host}{parsed.path or '/'}"
+        case.log(f"opening {host} in a throwaway browser microVM · network allowlist: our demo server only")
+        task = {"mode": "inspect", "url": target, "host_map": {host: SITES_TARGET}}
+        report, job = None, None
+        async for ev in runner_stream("/jobs/browse", data={"task": json.dumps(task), "allow": SITES_TARGET}):
+            t, d = ev["type"], ev["data"]
+            job = ev["job_id"]
+            if t == "browse.result":
+                report = d.get("report")
+            else:
+                case.emit(t, **d)
+        if not report:
+            case.emit("case.error", message="We couldn't open that link safely. Don't open it yourself.")
+            return
+        case.jobs.add(job)
+        save_meta(case)
+        sid = f"sbx-{job}"
+        for h in report.get("hidden_text", []):
+            case.emit("threat.contained", sandbox_id=sid, kind="prompt_injection",
+                      detail=f"Hidden text ({', '.join(h.get('reasons', []))}): \"{h.get('text', '')[:160]}\" · treated as data, never as instructions")
+        for dl in report.get("downloads", []):
+            case.emit("threat.contained", sandbox_id=sid, kind="download",
+                      detail=f"{dl.get('name')} ({dl.get('bytes', '?')} bytes) was captured inside the sandbox and destroyed with it; it never reached your phone")
+        allowed_prefix = f"http://{host}"
+        for b in report.get("blocked", []):
+            if b.get("url", "").startswith(allowed_prefix):
+                continue
+            carrying = " carrying page data" if b.get("post_data") else ""
+            case.emit("threat.contained", sandbox_id=sid, kind="exfiltration",
+                      detail=f"{b.get('method')} {b.get('url')}{carrying} was blocked: not on the sandbox's network allowlist")
+        shot = next((s["file"] for s in report.get("screenshots", [])), None)
+        shot_url = f"/api/cases/{case.id}/jobs/{job}/files/{shot}" if shot else None
+        verdict = {"verdict": "unsure", "reasons": [], "advice": ""}
+        if shot:
+            case.log(f"{agent.MODEL} · judging the page from its screenshot (page text passed as untrusted data)")
+            async with httpx.AsyncClient(timeout=30) as client:
+                r = await client.get(f"{RUNNER}/jobs/{job}/files/{shot}", headers=RUNNER_AUTH)
+            verdict = await agent.judge_link(r.content, target, report)
+        case.emit("link.checked", url=url, screenshot_url=shot_url, **verdict)
+    except Exception as err:  # noqa: BLE001
+        case.emit("case.error", message=f"The link check failed on our side: {err}"[:300])
 
 
 async def fetch_runner_file(job_id: str, path: str) -> bytes:

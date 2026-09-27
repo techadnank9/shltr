@@ -140,6 +140,74 @@ async def run_job(job_id: str, kind: str, size: int, in_dir: Path, out_dir: Path
         yield event("sandbox.destroyed", job_id, sandbox_id=name, lifetime_s=round(time.time() - started, 1), exit_code=code)
 
 
+BROWSER_IMAGE = os.environ.get("BROWSER_IMAGE", "shltr-browser:latest")
+BROWSER_LIMITS = {"cpus": 2, "memory_mb": 2048, "timeout_s": 120}
+ALLOWED_TARGET = re.compile(r"^10\.40\.0\.\d{1,3}:\d{2,5}$")  # private network only, never the internet
+
+
+@app.post("/jobs/browse", dependencies=[Depends(authorised)])
+async def browse(task: str = Form(...), allow: str = Form(...), from_job: str = Form(default="")) -> StreamingResponse:
+    """Pattern B: run the browser sandbox (inspect, fill or submit) in a fresh microVM whose network
+    allowlist holds only our own sites on the private network. `allow` is "10.40.0.3:8080[,...]".
+    `from_job` copies that job's state.json (and room.glb for uploads) into /in."""
+    spec = json.loads(task)
+    if spec.get("mode") not in ("inspect", "fill", "submit"):
+        raise HTTPException(status_code=400, detail="mode must be inspect, fill or submit")
+    targets = [t.strip() for t in allow.split(",") if t.strip()]
+    if not targets or not all(ALLOWED_TARGET.match(t) for t in targets):
+        raise HTTPException(status_code=400, detail="allow must list private 10.40.0.x:port targets only")
+    job_id = secrets.token_hex(6)
+    in_dir, out_dir = JOBS / job_id / "in", JOBS / job_id / "out"
+    in_dir.mkdir(parents=True)
+    out_dir.mkdir(parents=True)
+    if from_job:
+        if not JOB_ID.match(from_job):
+            raise HTTPException(status_code=400, detail="bad from_job")
+        for name in ("state.json", "room.glb", "photo.jpg"):
+            src = JOBS / from_job / "out" / name
+            if src.is_file():
+                shutil.copyfile(src, in_dir / name)
+    (in_dir / "task.json").write_text(json.dumps(spec))
+    for p in (in_dir, out_dir, *in_dir.iterdir()):
+        os.chown(p, SANDBOX_UID, SANDBOX_UID)
+    return StreamingResponse(run_browse_job(job_id, spec["mode"], targets, in_dir, out_dir), media_type="application/x-ndjson")
+
+
+async def run_browse_job(job_id: str, mode: str, targets: list[str], in_dir: Path, out_dir: Path):
+    name = f"sbx-{job_id}"
+    net = [arg for t in targets for arg in ("--net-rule", "allow@{}:tcp:{}".format(*t.split(":")))]
+    async with slots:
+        started = time.time()
+        yield event("sandbox.started", job_id, sandbox_id=name, kind="browser", mode=mode,
+                    limits={**BROWSER_LIMITS, "network": "allowlist: " + ", ".join(targets)})
+        cmd = [
+            MSB, "run", "--name", name, "--no-net", *net,
+            "--cpus", str(BROWSER_LIMITS["cpus"]), "--memory", f"{BROWSER_LIMITS['memory_mb']}M",
+            "--max-duration", f"{BROWSER_LIMITS['timeout_s']}s", "--tmpfs", "/tmp", "--tmpfs", "/home/sandbox",
+            "-v", f"{in_dir}:/in:ro", "-v", f"{out_dir}:/out:uid={SANDBOX_UID},gid={SANDBOX_UID}",
+            BROWSER_IMAGE,
+        ]
+        proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
+        try:
+            async for raw in proc.stdout:
+                line = raw.decode(errors="replace").rstrip()
+                if line:
+                    yield event("log.line", job_id, sandbox_id=name, stream="stdout", text=line[:500])
+            code = await asyncio.wait_for(proc.wait(), timeout=BROWSER_LIMITS["timeout_s"] + 30)
+        except asyncio.TimeoutError:
+            proc.kill()
+            code = -9
+        finally:
+            await msb("stop", name)
+            await msb("remove", "-f", name)  # the quarantined download dies here with the microVM
+        report = None
+        report_path = out_dir / "report.json"
+        if report_path.is_file() and report_path.stat().st_size < 2_000_000:
+            report = json.loads(report_path.read_text())
+        yield event("browse.result", job_id, sandbox_id=name, exit_code=code, report=report)
+        yield event("sandbox.destroyed", job_id, sandbox_id=name, lifetime_s=round(time.time() - started, 1), exit_code=code)
+
+
 CODE_LIMITS = {"cpus": 2, "memory_mb": 1024, "timeout_s": 60, "network": "none"}
 GEOM = Path(__file__).with_name("geom.py")
 
