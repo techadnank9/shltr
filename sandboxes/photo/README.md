@@ -54,3 +54,14 @@ Passes when the run finishes in under 60 s with `--network none`, `out/room.glb`
 - The network can stay off completely: `HF_HUB_OFFLINE=1` and `TRANSFORMERS_OFFLINE=1` are set, and the weights are in `/opt/model`.
 - Peak memory is well under 2 GB. torch uses every CPU it can see, so the microVM's CPU count sets the speed.
 - The image works on amd64 and arm64 (CPU torch wheels exist for both). Build it on VM 2 (amd64), or build it with `--platform linux/amd64`.
+
+## Video (added in Part 4)
+
+The entry point is now `prepare.py`, which accepts a photo or a short video in `/in`:
+
+- **Photo:** runs `depth.py` exactly as before, and adds `"source_kind": "photo"` to `stats.json`.
+- **Video** (`.mp4`, `.mov`, `.m4v`, `.webm`, `.mkv`, `.avi`, `.3gp`): `ffmpeg` extracts 1 frame per second (at most 30, at most 1280 px wide) inside the sandbox. Each frame gets a sharpness score, the sharpest one goes through `depth.py`, and up to 6 sharp frames spread across the video are saved as `/out/frames/frame_NN.jpg` with `/out/frames.json` (`source`, `kind`, `duration_s`, `best`, `frames: [{file, t, sharpness}]`). `stats.json` gains `source_kind`, `source` and `best_frame_t`.
+
+Settings: `MAX_FRAMES` (30) and `EVIDENCE_FRAMES` (6). A corrupted video exits non-zero with ffmpeg's error, and the runner reports it as `case.error`.
+
+In a Microsandbox microVM, mount the output folder with `uid=10001,gid=10001` (for example `-v /srv/job/out:/out:uid=10001,gid=10001`) so the image's non-root user can write to it.
