@@ -30,6 +30,15 @@ Needs a **LiDAR** iPhone — an iPhone 12 Pro or later Pro, or a 2020-or-later i
 simulator has no depth sensor and cannot scan; the app says so and points at the web recorder
 instead, which works on any phone.
 
+To look at the other screens on a simulator, launch it with `SHLTR_SIM_UI=1`, which gets past the
+unsupported screen. The scan still cannot run there — the walk will time out and report that
+nothing was recorded, which is correct.
+
+```bash
+xcrun simctl install booted build/Build/Products/Debug-iphonesimulator/ShltrCapture.app
+SIMCTL_CHILD_SHLTR_SIM_UI=1 xcrun simctl launch booted app.shltr.capture
+```
+
 It ships pointing at the live control plane. To aim it at a laptop, set `SHLTR_BASE` in the
 scheme's environment, for example `http://192.168.1.20:8000`.
 
@@ -49,8 +58,15 @@ standing in a flooded house is not doing a survey.
 
 ## Not done yet
 
-- **Nothing has run on a physical phone.** It compiles clean for arm64; the scan itself is
-  unverified. Walking a real room is the next step.
+- **Nothing has run on a physical phone.** It compiles clean for arm64 and runs on a simulator:
+  launch, the unsupported screen, the intro, the scan screen, the 30 s cap and the failure path
+  are all verified there. The scan itself — RoomPlan, the coverage engine, the video and the
+  upload — has never executed, because none of it can run without a depth sensor. Walking a real
+  room is the next step.
+- Unverified on device, and only settleable there: whether the wall normal taken from
+  `transform.columns.2` points the way `CoverageEngine` assumes (if it is flipped, coverage never
+  completes), whether the recorder's `.oriented(.right)` matches the camera, and whether the
+  5 m / 60° / 1 m thresholds feel right when walking.
 - The walk uploads video only. `CapturedRoom` — RoomPlan's actual walls, doors and windows, which
   are what an aid form asks for — is computed and then thrown away. Sending it needs a second
   artifact on `POST /api/cases`, which is a control-plane change.
