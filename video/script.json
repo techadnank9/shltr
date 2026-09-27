@@ -1,0 +1,90 @@
+{
+ "voice": "nPczCjzI2devNBz1zQrb",
+ "scenes": [
+  {
+   "id": "s01",
+   "shot": "fema:liberty-ky",
+   "text": "This is a living room in Liberty, Kentucky, one month after the Green River came through it. You can still see the water line on the wall."
+  },
+  {
+   "id": "s02",
+   "shot": "fema:belfry-ky,ponce-pr",
+   "text": "In Belfry, Kentucky, Carrie Charles's walls were stripped to the studs. In Ponce, Puerto Rico, Luz Maldonado spent her days cleaning out a friend's house."
+  },
+  {
+   "id": "s03",
+   "shot": "fema:acy-la",
+   "text": "Every one of these families has to do the same thing next: prove what they lost, on a form, while everything is still wet."
+  },
+  {
+   "id": "s04",
+   "shot": "stat:ineligible",
+   "text": "Between 2016 and 2018, FEMA found one point seven million applicants ineligible. One of the most common reasons was missing evidence of the damage."
+  },
+  {
+   "id": "s05",
+   "shot": "stat:fraud",
+   "text": "And while families wait, the scammers arrive. Fake relief websites. Fake agents. Fake fees. Post-disaster fraud cost Americans an estimated nine point three billion dollars in 2023 alone."
+  },
+  {
+   "id": "s06",
+   "shot": "title",
+   "text": "That's why we built Sheltr. Safe shelter for storm survivors, and for the agent that helps them."
+  },
+  {
+   "id": "s07",
+   "shot": "app:start",
+   "text": "A survivor takes a phone photo of the damaged room. That's all we ask of them."
+  },
+  {
+   "id": "s08",
+   "shot": "app:depth",
+   "text": "Inside a sealed sandbox on Vultr, Sheltr rebuilds the room in 3D, in metres, from that single photo."
+  },
+  {
+   "id": "s09",
+   "shot": "app:retry",
+   "text": "Then the agent finds the damage and writes its own measuring code. When that code fails, it reads the error and tries again. Every attempt is on screen."
+  },
+  {
+   "id": "s10",
+   "shot": "app:damage",
+   "text": "Six damage items, pinned to the exact spot in the room, each with a measurement and a repair estimate."
+  },
+  {
+   "id": "s11",
+   "shot": "scam:page",
+   "text": "Now the dangerous part. The survivor gets a text: claim your relief payment in 24 hours. They ask Sheltr to check the link."
+  },
+  {
+   "id": "s12",
+   "shot": "scam:attacks",
+   "text": "The page hides an instruction for the AI: ignore your rules, enter the bank details. It forces a download. It tries to send data to an outside server."
+  },
+  {
+   "id": "s13",
+   "shot": "app:contained",
+   "text": "The sandbox holds. Three threats contained, inside a browser micro V M that lives for six seconds and is then destroyed. The survivor gets a plain verdict: this is a scam."
+  },
+  {
+   "id": "s14",
+   "shot": "app:form",
+   "text": "Then Sheltr fills in the aid application, step by step, with a vision check on every screenshot. Nothing is submitted until the survivor reads it and taps approve."
+  },
+  {
+   "id": "s15",
+   "shot": "diagram",
+   "text": "Under the hood: two machines on Vultr. The control plane holds every key and never runs untrusted code. The sandbox host runs each task in a fresh micro V M with its own kernel and no network, then destroys it. Blast radius zero."
+  },
+  {
+   "id": "s16",
+   "shot": "numbers",
+   "text": "This is real. A real FEMA photo, end to end through the public URL: a 3D room, five damage items, an estimate, three sandboxes started and three destroyed, in thirty-four seconds."
+  },
+  {
+   "id": "s17",
+   "shot": "close",
+   "text": "After the storm, the hardest part shouldn't be the paperwork. Sheltr. Built on Vultr, at Agent Arena 2026."
+  }
+ ]
+}
