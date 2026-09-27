@@ -1,4 +1,4 @@
-<title>After the Storm Blueprint</title>
+<title>Sheltr Blueprint</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
@@ -85,7 +85,7 @@
 <div class="wrap">
   <header class="top">
     <span class="eyebrow">Blast Radius Zero · Vultr Agent Arena</span>
-    <h1>After the Storm Blueprint</h1>
+    <h1>Sheltr Blueprint</h1>
     <p class="lede">A flood survivor uploads photos of a damaged room. An agent on <b>Vultr</b> turns them into a 3D room, finds and prices the damage, and fills in the aid application. Every risky step runs inside a <b>throwaway sandbox</b>, and nothing is submitted until the survivor approves it.</p>
     <nav class="toc" aria-label="Sections">
       <a href="#big-picture">Big picture</a>
@@ -138,9 +138,9 @@ flowchart TD
   A["1 · Open the app and start a case"] --> B["2 · Upload photos or a 10-second video of the room"]
   B --> C["3 · Watch the photo turn into a 3D room"]
   C --> D["4 · See damage marked in 3D<br/>with measurements and a cost estimate"]
-  D --> E{"5 · Was anything in the upload dangerous?"}
-  E -- "Yes" --> F["Sandbox absorbs it<br/>screen shows CONTAINED<br/>case carries on"]
-  E -- "No" --> G
+  D --> E{"5 · Got a text with an aid link?<br/>Ask Sheltr to check it"}
+  E -- "It's a fake site" --> F["Opened in a throwaway browser<br/>attack contained · survivor warned"]
+  E -- "No link" --> G
   F --> G["6 · Agent fills in the aid form in a sandboxed browser<br/>screenshot at every step"]
   G --> H{"7 · Survivor reviews. Approve?"}
   H -- "Approve" --> I["Submitted · receipt saved · sandbox destroyed"]
@@ -184,6 +184,10 @@ sequenceDiagram
   SB-->>RN: Areas and costs, exit 0
   RN->>SB: Destroy
   CP-->>UI: Live update: markers and total
+  S->>UI: Is this aid link from my texts real?
+  CP->>RN: Open it in a browser sandbox
+  RN-->>CP: Blocked: prompt injection, download, data grab
+  CP-->>UI: CONTAINED · fake aid site · survivor warned
   CP->>RN: Start browser sandbox, portal only
   loop Each form step
     BR-->>CP: Screenshot
@@ -227,7 +231,7 @@ stateDiagram-v2
           <tr><td>Isolation</td><td>Microsandbox microVM with its own kernel</td><td>Docker container on the gVisor runtime</td></tr>
           <tr><td>CPU and memory</td><td>2 CPU, 2 GB</td><td>1 CPU, 1 GB</td></tr>
           <tr><td>Time limit</td><td>120 seconds, then killed</td><td>180 seconds, then killed</td></tr>
-          <tr><td>Network</td><td>Off</td><td>Aid portal only, everything else blocked</td></tr>
+          <tr><td>Network</td><td>Off</td><td>Our aid portal and demo scam page only, everything else blocked</td></tr>
           <tr><td>Disk</td><td>Read-only system, one writable output folder</td><td>Read-only system, one writable output folder</td></tr>
           <tr><td>Secrets inside</td><td>None</td><td>None. A fake test identity only</td></tr>
           <tr><td>After the task</td><td>Destroyed</td><td>Destroyed</td></tr>
@@ -282,21 +286,24 @@ flowchart TD
 
   <section id="containment">
     <h2><span class="n">07</span>The containment moment</h2>
-    <p>The brief requires one on video. One of the uploaded photos hides a command in its metadata. When the agent's code reads that metadata, the command runs, and it hits three walls at once.</p>
+    <p>The brief requires one on video. After every disaster, scammers text survivors links to lookalike aid websites that steal bank details. When a survivor asks Sheltr to check one, the agent opens it in a throwaway browser sandbox, and the site attacks. Each attack hits a wall.</p>
     <figure class="diagram">
 <pre class="mermaid">
 flowchart LR
-  A["Photo 3 hides a command<br/>in its metadata: rm -rf /"] --> B["Agent's code reads the metadata<br/>inside the photo sandbox"]
-  B --> C["The command runs"]
-  C --> D["Read-only disk:<br/>nothing deleted"]
-  C --> E["No network:<br/>cannot phone home"]
-  C --> F["Own kernel:<br/>host never touched"]
-  D --> G["Runner logs it<br/>screen shows CONTAINED"]
-  E --> G
-  F --> G
-  G --> H["Sandbox destroyed<br/>next task starts clean"]
+  A["Survivor gets a text:<br/>claim your aid at a lookalike site"] --> B["Sheltr opens the link<br/>in a throwaway browser sandbox"]
+  B --> C["The fake site attacks"]
+  C --> D["Hidden text tells the AI<br/>to enter bank details"]
+  C --> E["Forces a file download"]
+  C --> F["Sends form data<br/>to the scammer's server"]
+  D --> D2["Nothing to steal:<br/>only a fake identity inside"]
+  E --> E2["File lands in a sandbox<br/>that gets destroyed"]
+  F --> F2["Blocked: server not<br/>on the allowlist"]
+  D2 --> G["Vision model flags the lookalike site<br/>screen shows CONTAINED"]
+  E2 --> G
+  F2 --> G
+  G --> H["Sandbox destroyed · survivor warned<br/>case carries on"]
 </pre>
-      <figcaption>Backup containment moments: an infinite loop killed by the 120-second limit, and a hostile page on the portal that tries to download a file.</figcaption>
+      <figcaption>Backup containment moment: the agent's first measuring script loads a full-size 48-megapixel photo, runs out of memory or time, and gets killed by the limits. The model reads the error and rewrites it to downscale first.</figcaption>
     </figure>
   </section>
 
