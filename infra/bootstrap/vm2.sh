@@ -3,6 +3,12 @@
 # Safe to re-run.
 set -euo pipefail
 
+# Guard: this script removes public SSH. Run on VM 1 by mistake, it locks everyone out of VM 1.
+if [ "$(hostname)" != "shltr-vm2" ]; then
+  echo "Refusing to run: this is $(hostname), not shltr-vm2. vm2.sh would remove public SSH here." >&2
+  exit 1
+fi
+
 # 1. Host firewall: accept traffic only from the private network (VPC).
 #    Vultr's firewall group did not filter this VX1 server, and Ubuntu's default ufw
 #    allowed SSH from anywhere, so the host itself must enforce "no public ports".

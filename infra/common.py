@@ -5,12 +5,18 @@ Keys are read from the repo-root .env and are never printed.
 """
 import json
 import os
+import socket
 import sys
 import urllib.error
 import urllib.request
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+
+# Use IPv4 for every call. Phone hotspots rotate IPv6 prefixes, which breaks the Vultr API key's
+# IP allowlist; IPv4 addresses are steadier and are what we allow-list.
+_getaddrinfo = socket.getaddrinfo
+socket.getaddrinfo = lambda host, *a, **k: [r for r in _getaddrinfo(host, *a, **k) if r[0] == socket.AF_INET] or _getaddrinfo(host, *a, **k)
 
 
 def load_env() -> dict:
