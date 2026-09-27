@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Flood Scan</title>
+<style>
+  :root{
+    --bg:#0e1113; --panel:rgba(20,24,28,.88); --ink:#eceef0; --soft:#99a1a8;
+    --line:rgba(255,255,255,.12); --accent:#4ec9b4; --warn:#e0a35e;
+  }
+  :root[data-theme="light"]{
+    --bg:#eceae5; --panel:rgba(255,255,255,.92); --ink:#15171a; --soft:#5b6169;
+    --line:rgba(0,0,0,.12); --accent:#0b6b5f; --warn:#8a4b12;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);overflow:hidden;
+    font:14px/1.5 ui-sans-serif,-apple-system,"Segoe UI",Inter,system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  canvas{display:block}
+  .panel{position:fixed;background:var(--panel);backdrop-filter:blur(16px);
+    -webkit-backdrop-filter:blur(16px);border:1px solid var(--line);border-radius:14px;z-index:10}
+  #hud{left:16px;top:16px;width:292px;max-width:calc(100vw - 32px);padding:16px 17px}
+  h1{font-size:15px;margin:0 0 3px;font-weight:620;letter-spacing:-.01em}
+  .sub{color:var(--soft);font-size:12.5px;margin:0 0 13px}
+  .row{display:flex;justify-content:space-between;align-items:baseline;
+    font-size:12.5px;padding:5px 0;border-top:1px solid var(--line)}
+  .row span{color:var(--soft)} .row b{font-weight:600;font-variant-numeric:tabular-nums}
+  .ctl{margin-top:14px;padding-top:13px;border-top:1px solid var(--line)}
+  label{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:8px}
+  label b{color:var(--accent);font-variant-numeric:tabular-nums;font-weight:650}
+  input[type=range]{width:100%;accent-color:var(--accent);margin:0}
+  .btns{display:flex;gap:6px;margin-top:11px;flex-wrap:wrap}
+  button{flex:1;min-width:52px;background:transparent;color:var(--ink);border:1px solid var(--line);
+    border-radius:8px;padding:7px 4px;font:inherit;font-size:12px;cursor:pointer;transition:.15s}
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  button.on{background:color-mix(in srgb,var(--accent) 20%,transparent);
+    border-color:var(--accent);color:var(--accent)}
+  #claim{right:16px;top:16px;width:236px;max-width:calc(100vw - 32px);padding:15px 16px}
+  #claim h2{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--soft);
+    margin:0 0 11px;font-weight:650}
+  .big{font-size:26px;font-weight:650;letter-spacing:-.02em;font-variant-numeric:tabular-nums;
+    color:var(--warn);line-height:1.1}
+  .big.dry{color:var(--soft)}
+  .cap{font-size:12px;color:var(--soft);margin:3px 0 12px}
+  .li{display:flex;justify-content:space-between;font-size:12.5px;padding:4px 0}
+  .li span{color:var(--soft)} .li b{font-variant-numeric:tabular-nums;font-weight:600}
+  .note{font-size:11px;color:var(--soft);margin-top:11px;padding-top:10px;
+    border-top:1px solid var(--line);line-height:1.45}
+  #load{position:fixed;inset:0;display:grid;place-items:center;background:var(--bg);z-index:50;
+    transition:opacity .4s;font-size:13.5px;color:var(--soft)}
+  #load.gone{opacity:0;pointer-events:none}
+  #err{left:50%;top:50%;transform:translate(-50%,-50%);max-width:420px;padding:20px;
+    display:none;z-index:60;font-size:13.5px}
+  @media(max-width:820px){
+    #claim{right:16px;top:auto;bottom:16px;width:calc(100vw - 32px);max-width:292px}
+    #hud{width:calc(100vw - 32px);max-width:292px}
+  }
+</style>
+</head>
+<body>
+<div id="load">loading scan…</div>
+<div id="err" class="panel"></div>
+
+<div id="hud" class="panel">
+  <h1>Room scan</h1>
+  <p class="sub" id="cap">measuring…</p>
+  <div class="row"><span>Footprint</span><b id="fp">–</b></div>
+  <div class="row"><span>Height span</span><b id="hs">–</b></div>
+  <div class="row"><span>Triangles</span><b id="tri">–</b></div>
+  <div class="ctl">
+    <label>Flood depth <b id="wv">0.00 m</b></label>
+    <input id="w" type="range" min="0" max="2.5" step="0.01" value="0">
+    <div class="btns">
+      <button data-d="0">Dry</button>
+      <button data-d="0.45">Ankle</button>
+      <button data-d="0.95">Waist</button>
+      <button data-d="1.70">Chest</button>
+    </div>
+    <div class="btns">
+      <button id="rise">Play flood</button>
+      <button id="stain" class="on">Stain</button>
+    </div>
+    <div class="btns">
+      <button id="spin" class="on">Spin</button>
+      <button id="wire">Wireframe</button>
+      <button id="theme">Light</button>
+    </div>
+  </div>
+</div>
+
+<div id="claim" class="panel">
+  <h2>Loss at this depth</h2>
+  <div class="big dry" id="est">&mdash;</div>
+  <p class="cap" id="estcap">No water. Nothing affected.</p>
+  <div class="li"><span>Flooded floor area</span><b id="area">0 m&sup2;</b></div>
+  <div class="li"><span>Wall line to replace</span><b id="wall">0 m</b></div>
+  <div class="li"><span>Contents affected</span><b id="items">0</b></div>
+  <p class="note">Illustrative figures derived from the scan's own geometry and the water height. Not a priced estimate &mdash; the control plane produces that from the damage model.</p>
+</div>
+
+<script type="importmap">
+{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+
+const $=id=>document.getElementById(id);
+const fail=m=>{const e=$('err');e.style.display='block';e.textContent=m;$('load').classList.add('gone');};
+
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(52,innerWidth/innerHeight,0.05,600);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(innerWidth,innerHeight);
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+
+const controls=new OrbitControls(camera,renderer.domElement);
+controls.enableDamping=true; controls.dampingFactor=0.06;
+
+scene.add(new THREE.HemisphereLight(0xffffff,0x3c4450,2.1));
+const dir=new THREE.DirectionalLight(0xffffff,1.45); dir.position.set(4,9,5); scene.add(dir);
+
+function bg(){const l=document.documentElement.dataset.theme==='light';
+  scene.background=new THREE.Color(l?0xeceae5:0x0e1113);
+  scene.fog=new THREE.Fog(l?0xeceae5:0x0e1113,30,130);}
+bg();
+
+// shared uniforms driving the waterline stain on the scan itself
+const U={ water:{value:-1e9}, peak:{value:-1e9}, stain:{value:1.0} };
+
+let water=null, floorY=0, footX=1, footZ=1, spin=true, rising=null;
+const mats=[];
+
+function hookStain(mat){
+  mat.onBeforeCompile = shader => {
+    shader.uniforms.uWater = U.water;
+    shader.uniforms.uPeak  = U.peak;
+    shader.uniforms.uStain = U.stain;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying float vWY;')
+      .replace('#include <begin_vertex>',
+               '#include <begin_vertex>\nvWY = (modelMatrix * vec4(transformed,1.0)).y;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>',
+               '#include <common>\nvarying float vWY;\nuniform float uWater;\nuniform float uPeak;\nuniform float uStain;')
+      .replace('#include <dithering_fragment>', `
+        #include <dithering_fragment>
+        if (uStain > 0.5) {
+          float band = 1.0 - smoothstep(0.0, 0.16, abs(vWY - uPeak));
+          gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.26,0.20,0.13), band*0.78);
+          float below = 1.0 - smoothstep(-0.05, 0.05, vWY - uPeak);
+          gl_FragColor.rgb = mix(gl_FragColor.rgb, gl_FragColor.rgb*vec3(0.62,0.58,0.45), below*0.65);
+        }
+        float d = uWater - vWY;
+        if (d > 0.0) {
+          float t = clamp(d/1.5, 0.0, 1.0);
+          gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.20,0.19,0.12), 0.26 + 0.46*t);
+        }
+      `);
+  };
+  mat.needsUpdate=true;
+}
+
+new GLTFLoader().load('scan.glb', gltf=>{
+  const model=gltf.scene;
+  model.traverse(o=>{
+    if(!o.isMesh) return;
+    if(!o.geometry.attributes.normal) o.geometry.computeVertexNormals();
+    o.material.side=THREE.DoubleSide;
+    hookStain(o.material);
+    mats.push(o.material);
+  });
+  scene.add(model);
+
+  const box=new THREE.Box3().setFromObject(model);
+  const size=box.getSize(new THREE.Vector3());
+  const ctr=box.getCenter(new THREE.Vector3());
+  floorY=box.min.y; footX=size.x; footZ=size.z;
+
+  let tris=0;
+  model.traverse(o=>{if(o.isMesh&&o.geometry.index) tris+=o.geometry.index.count/3;});
+
+  $('fp').textContent=`${size.x.toFixed(1)} × ${size.z.toFixed(1)} m`;
+  $('hs').textContent=`${size.y.toFixed(2)} m`;
+  $('tri').textContent=Math.round(tris).toLocaleString();
+  $('cap').textContent='Drag to orbit, scroll to zoom.';
+
+  const g=new THREE.PlaneGeometry(size.x*1.02,size.z*1.02);
+  g.rotateX(-Math.PI/2);
+  water=new THREE.Mesh(g,new THREE.MeshPhysicalMaterial({
+    color:0x6d6344, transparent:true, opacity:0.52, roughness:0.14,
+    metalness:0.0, transmission:0.72, thickness:0.5, ior:1.33, side:THREE.DoubleSide
+  }));
+  water.position.set(ctr.x,floorY,ctr.z);
+  water.visible=false;
+  scene.add(water);
+
+  const r=Math.max(size.x,size.z,size.y);
+  controls.target.copy(ctr);
+  camera.position.set(ctr.x+r*0.72,ctr.y+r*0.52,ctr.z+r*0.88);
+  controls.minDistance=r*0.10; controls.maxDistance=r*3.5;
+  controls.update();
+  $('load').classList.add('gone');
+}, xhr=>{
+  if(xhr.total) $('load').textContent=`loading scan… ${Math.round(xhr.loaded/xhr.total*100)}%`;
+}, e=>fail('Could not load the scan — '+(e&&e.message?e.message:'unknown error')));
+
+// depth -> illustrative loss figures, derived from the scan's real footprint
+function claim(d){
+  if(d<=0.005){
+    $('est').textContent='—'; $('est').classList.add('dry');
+    $('estcap').textContent='No water. Nothing affected.';
+    $('area').textContent='0 m²'; $('wall').textContent='0 m'; $('items').textContent='0';
+    return;
+  }
+  $('est').classList.remove('dry');
+  const area=footX*footZ;
+  const perim=2*(footX+footZ);
+  const cutH=d+0.3;
+  const items=Math.round(4+area*0.10+d*9);
+  const est=Math.round((area*34 + perim*cutH*46 + items*135)/10)*10;
+  $('est').textContent='$'+est.toLocaleString();
+  $('estcap').textContent=d<0.5?'Floor and skirting.':d<1.2?'Drywall cut above the line.':'Wall cavity and wiring.';
+  $('area').textContent=area.toFixed(0)+' m²';
+  $('wall').textContent=perim.toFixed(0)+' m';
+  $('items').textContent=String(items);
+}
+
+function setDepth(d,fromUser){
+  d=Math.max(0,Math.min(2.5,d));
+  $('wv').textContent=d.toFixed(2)+' m';
+  if(parseFloat($('w').value)!==d) $('w').value=d;
+  U.water.value=floorY+d;
+  if(floorY+d>U.peak.value) U.peak.value=floorY+d;
+  if(d<=0.004) U.peak.value=-1e9;
+  if(water){water.position.y=floorY+d; water.visible=d>0.004;}
+  claim(d);
+  if(fromUser) document.querySelectorAll('[data-d]').forEach(b=>b.classList.remove('on'));
+}
+
+$('w').addEventListener('input',e=>{ rising=null; $('rise').classList.remove('on'); setDepth(parseFloat(e.target.value),true); });
+document.querySelectorAll('[data-d]').forEach(b=>b.addEventListener('click',()=>{
+  rising=null; $('rise').classList.remove('on');
+  setDepth(parseFloat(b.dataset.d),true);
+  document.querySelectorAll('[data-d]').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');
+}));
+$('rise').addEventListener('click',e=>{
+  if(rising){ rising=null; e.target.classList.remove('on'); return; }
+  U.peak.value=-1e9; setDepth(0,true);
+  rising={t:0,to:1.35}; e.target.classList.add('on');
+});
+$('stain').addEventListener('click',e=>{
+  U.stain.value = U.stain.value>0.5?0.0:1.0;
+  e.target.classList.toggle('on',U.stain.value>0.5);
+});
+$('spin').addEventListener('click',e=>{spin=!spin;e.target.classList.toggle('on',spin);});
+$('wire').addEventListener('click',e=>{
+  const on=!mats[0]?.wireframe; mats.forEach(m=>m.wireframe=on); e.target.classList.toggle('on',on);
+});
+$('theme').addEventListener('click',e=>{
+  const l=document.documentElement.dataset.theme==='light';
+  document.documentElement.dataset.theme=l?'dark':'light';
+  e.target.textContent=l?'Light':'Dark'; bg();
+});
+
+addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+
+let t=0;
+renderer.setAnimationLoop(()=>{
+  t+=0.0055;
+  if(rising){
+    rising.t+=0.0045;
+    const e=rising.t<1 ? 1-Math.pow(1-rising.t,3) : 1;
+    setDepth(rising.to*e,false);
+    if(rising.t>=1){ rising=null; $('rise').classList.remove('on'); }
+  }
+  if(water&&water.visible){
+    water.material.opacity=0.50+Math.sin(t*2.0)*0.035;
+    water.position.y+=Math.sin(t*1.6)*0.0007;
+  }
+  controls.autoRotate=spin; controls.autoRotateSpeed=0.45;
+  controls.update();
+  renderer.render(scene,camera);
+});
+</script>
+</body>
+</html>
