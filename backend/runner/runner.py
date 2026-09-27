@@ -208,6 +208,62 @@ async def run_browse_job(job_id: str, mode: str, targets: list[str], in_dir: Pat
         yield event("sandbox.destroyed", job_id, sandbox_id=name, lifetime_s=round(time.time() - started, 1), exit_code=code)
 
 
+REPORT_IMAGE = os.environ.get("REPORT_IMAGE", "shltr-report:latest")
+REPORT_LIMITS = {"cpus": 2, "memory_mb": 2048, "timeout_s": 90, "network": "none"}
+
+
+@app.post("/jobs/report", dependencies=[Depends(authorised)])
+async def report(data: str = Form(...), from_job: str = Form(...)) -> StreamingResponse:
+    """Damage Evidence Report: our fixed report.py builds report.pdf in a fresh no-network microVM
+    from the reconstruct job's photo.jpg, room.glb, depth.png and stats.json plus the case data."""
+    json.loads(data)
+    if not JOB_ID.match(from_job):
+        raise HTTPException(status_code=400, detail="bad from_job")
+    job_id = secrets.token_hex(6)
+    in_dir, out_dir = JOBS / job_id / "in", JOBS / job_id / "out"
+    in_dir.mkdir(parents=True)
+    out_dir.mkdir(parents=True)
+    for name in ("photo.jpg", "room.glb", "depth.png", "stats.json"):
+        src = JOBS / from_job / "out" / name
+        if src.is_file():
+            shutil.copyfile(src, in_dir / name)
+    (in_dir / "report.json").write_text(data)
+    for p in (in_dir, out_dir, *in_dir.iterdir()):
+        os.chown(p, SANDBOX_UID, SANDBOX_UID)
+    return StreamingResponse(run_report_job(job_id, in_dir, out_dir), media_type="application/x-ndjson")
+
+
+async def run_report_job(job_id: str, in_dir: Path, out_dir: Path):
+    name = f"sbx-{job_id}"
+    async with slots:
+        started = time.time()
+        yield event("sandbox.started", job_id, sandbox_id=name, kind="report", limits=REPORT_LIMITS)
+        cmd = [
+            MSB, "run", "--name", name, "--no-net",
+            "--cpus", str(REPORT_LIMITS["cpus"]), "--memory", f"{REPORT_LIMITS['memory_mb']}M",
+            "--max-duration", f"{REPORT_LIMITS['timeout_s']}s", "--tmpfs", "/tmp",
+            "-v", f"{in_dir}:/in:ro", "-v", f"{out_dir}:/out:uid={SANDBOX_UID},gid={SANDBOX_UID}",
+            REPORT_IMAGE,
+        ]
+        proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
+        try:
+            async for raw in proc.stdout:
+                line = raw.decode(errors="replace").rstrip()
+                if line:
+                    yield event("log.line", job_id, sandbox_id=name, stream="stdout", text=line[:500])
+            code = await asyncio.wait_for(proc.wait(), timeout=REPORT_LIMITS["timeout_s"] + 30)
+        except asyncio.TimeoutError:
+            proc.kill()
+            code = -9
+        finally:
+            await msb("stop", name)
+            await msb("remove", "-f", name)
+        meta_path = out_dir / "report-meta.json"
+        meta = json.loads(meta_path.read_text()) if meta_path.is_file() else None
+        yield event("report.result", job_id, sandbox_id=name, exit_code=code, meta=meta)
+        yield event("sandbox.destroyed", job_id, sandbox_id=name, lifetime_s=round(time.time() - started, 1), exit_code=code)
+
+
 CODE_LIMITS = {"cpus": 2, "memory_mb": 1024, "timeout_s": 60, "network": "none"}
 GEOM = Path(__file__).with_name("geom.py")
 

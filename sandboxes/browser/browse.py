@@ -3,7 +3,7 @@
 Modes
   inspect  open a suspicious link and record what it tries: every request (and which failed or were
            blocked), forced downloads (kept here, reported by name, size and sha256, destroyed with the
-           microVM), text hidden from people but readable by an AI, forms, and a screenshot.
+           microVM), forms, and a screenshot.
   fill     open the aid portal and run the planned steps (fill / select / check / upload / click),
            screenshot after each step, and stop before the final submit. Saves the browser state.
   submit   after the survivor approves: restore the saved state, click submit, screenshot the receipt.
@@ -30,29 +30,6 @@ from playwright.sync_api import sync_playwright
 IN, OUT = Path("/in"), Path("/out")
 SHOTS = OUT / "shots"
 QUARANTINE = Path("/tmp/quarantine")
-
-HIDDEN_TEXT_JS = """
-() => {
-  const found = [];
-  const skip = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'SVG']);  // code, not text meant for readers
-  for (const el of document.querySelectorAll('body *')) {
-    if (skip.has(el.tagName.toUpperCase())) continue;
-    const own =[...el.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join(' ').trim();
-    if (own.length < 12) continue;
-    const s = getComputedStyle(el), r = el.getBoundingClientRect();
-    const reasons = [];
-    if (s.display === 'none') reasons.push('display:none');
-    if (s.visibility === 'hidden') reasons.push('visibility:hidden');
-    if (parseFloat(s.opacity) < 0.05) reasons.push('opacity ~0');
-    if (parseFloat(s.fontSize) < 4) reasons.push('font-size ' + s.fontSize);
-    if (r.right < 0 || r.bottom < 0 || r.left > 5000 || r.top > 20000) reasons.push('off-screen');
-    if (s.color === s.backgroundColor || (s.color === 'rgb(255, 255, 255)' && ['rgba(0, 0, 0, 0)', 'rgb(255, 255, 255)'].includes(s.backgroundColor))) reasons.push('same colour as background');
-    if (s.clipPath && s.clipPath.includes('inset(100%')) reasons.push('clipped');
-    if (reasons.length) found.push({text: own.slice(0, 600), reasons, tag: el.tagName.toLowerCase()});
-  }
-  return found.slice(0, 20);
-}
-"""
 
 FORMS_JS = """
 () => [...document.querySelectorAll('input, select, textarea, button')].slice(0, 60).map(el => ({
@@ -119,11 +96,10 @@ def inspect(page, task: dict, report: dict) -> None:
     report["final_url"] = page.url
     report["title"] = page.title()[:200]
     report["visible_text"] = page.inner_text("body")[:4000]
-    report["hidden_text"] = page.evaluate(HIDDEN_TEXT_JS)
     report["forms"] = page.evaluate(FORMS_JS)
     report["screenshots"].append({"title": "Page as the survivor would see it", "file": shot(page, 1, "page")})
     log(f"{len(report['requests'])} requests, {len(report['blocked'])} blocked, "
-        f"{len(report['downloads'])} downloads, {len(report['hidden_text'])} hidden text blocks")
+        f"{len(report['downloads'])} downloads")
 
 
 def run_action(page, action: dict) -> None:
