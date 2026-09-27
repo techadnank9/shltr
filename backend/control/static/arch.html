@@ -64,6 +64,18 @@
   ol.flow li b { display: block; }
   ol.flow li span { color: var(--muted); font-size: 13.5px; }
   .quote { margin-top: 18px; border-left: 3px solid var(--amber); padding: 10px 16px; background: var(--panel2); font-size: 17px; }
+  .script { margin-top: 16px; background: var(--panel2); border: 1px solid rgba(242,163,58,.55); border-radius: 12px; padding: 18px 20px; }
+  .script p { margin: 0 0 12px; font-size: 17px; line-height: 1.6; }
+  .script p:last-child { margin-bottom: 0; }
+  .script .t { display: inline-block; min-width: 64px; font: 600 12px var(--mono); color: var(--amber); }
+  .script .say { color: var(--muted); font: 12px var(--mono); margin-bottom: 10px; }
+  .glossary { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; margin-top: 14px; }
+  .glossary div { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; font-size: 14px; color: #cfd9dc; }
+  .glossary b { display: block; color: var(--text); font-size: 15px; margin-bottom: 4px; }
+  details { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; margin-top: 8px; }
+  summary { cursor: pointer; padding: 12px 16px; font-weight: 600; }
+  details[open] summary { border-bottom: 1px solid var(--line); }
+  details p { margin: 0; padding: 12px 16px 14px; color: #cfd9dc; font-size: 14.5px; }
   footer { margin-top: 48px; color: var(--muted); font: 12px var(--mono); }
   @media (max-width: 900px) {
     .diagram { grid-template-columns: 1fr; }
@@ -76,7 +88,48 @@
   <span class="tag">VULTR AGENT ARENA 2026 · BLAST RADIUS ZERO</span>
   <h1 style="margin-top:14px">Shel<span>tr</span> architecture</h1>
   <p class="lede">An agent that does real work for flood survivors: 3D from a photo, damage pricing, code, a PDF, a scam-link check and a live aid claim. Every risky step runs in a throwaway microVM on Vultr, inside one private network.</p>
-  <nav><a href="#live-h">Live status</a><a href="#map">System map</a><a href="#flow">One case, step by step</a><a href="#contain">Containment</a><a href="#stack">Tech stack</a><a href="#vultr">Why only Vultr</a><a href="#limits">Honest limits</a><a href="/story/">Story ↗</a><a href="/case/c_3a778588">Finished case ↗</a><a href="/start">Try it ↗</a></nav>
+  <nav><a href="#pitch">1-minute pitch</a><a href="#words">Words explained</a><a href="#qa">Judge questions</a><a href="#live-h">Live status</a><a href="#map">System map</a><a href="#flow">One case, step by step</a><a href="#contain">Containment</a><a href="#stack">Tech stack</a><a href="#vultr">Why only Vultr</a><a href="#limits">Honest limits</a><a href="/story/">Story ↗</a><a href="/case/c_3a778588">Finished case ↗</a><a href="/start">Try it ↗</a></nav>
+
+  <h2 id="pitch">1-minute pitch<small>Read this out. About 60 seconds.</small></h2>
+  <div class="script">
+    <div class="say">SAY IT SLOWLY &middot; POINT AT THE SCREEN</div>
+    <p><span class="t">0:00</span> After a flood, families have to prove every loss to get aid. The same week, scammers send them fake relief websites. Insurers already use 3D scans to settle claims faster, but that needs a special camera a family does not have.</p>
+    <p><span class="t">0:15</span> Sheltr needs one phone photo. An AI agent on Vultr rebuilds the room in 3D, finds and prices the damage, writes code to measure it, and makes a PDF evidence report.</p>
+    <p><span class="t">0:30</span> It also checks suspicious links. Here, a fake aid site tries to plant malware and steal your details. Both attacks are caught inside a sealed sandbox.</p>
+    <p><span class="t">0:40</span> Then the agent fills in the aid form live, in a real browser you can watch. It stops before Submit. You can edit anything, and nothing is sent until you approve.</p>
+    <p><span class="t">0:50</span> Every risky step runs in its own tiny throwaway computer on Vultr that is deleted afterwards. The AI never holds your keys. That is Blast Radius Zero: an agent that really does the work, safely.</p>
+  </div>
+
+  <h2 id="words">Words explained<small>If a judge uses a word you are unsure about.</small></h2>
+  <div class="glossary">
+    <div><b>Agent</b>An AI that does steps by itself (plans, runs code, uses a browser), not just chats.</div>
+    <div><b>Sandbox / microVM</b>A tiny throwaway computer made for one job and deleted after. Whatever happens inside stays inside.</div>
+    <div><b>Blast radius</b>How much damage one mistake or attack can cause. Ours is limited to one sandbox that gets deleted.</div>
+    <div><b>VPC</b>A private network on Vultr. Our servers talk to each other there, hidden from the internet.</div>
+    <div><b>Control plane (VM 1)</b>The main server: runs the website and the AI agent, and holds the keys.</div>
+    <div><b>Sandbox host (VM 2)</b>The server where the throwaway sandboxes run. It has no public door to the internet.</div>
+    <div><b>Serverless Inference</b>Vultr&rsquo;s service that runs the AI model (glm-5.3) for us. We send a question, it answers.</div>
+    <div><b>Depth model</b>AI that guesses how far away each part of a photo is. That is how one photo becomes 3D.</div>
+    <div><b>SHA-256 fingerprint</b>A unique code for a file. If anyone changes the file, the code changes, so the evidence cannot be secretly edited.</div>
+    <div><b>Allowlist</b>The short list of places a sandbox may connect to. Everything else is blocked.</div>
+    <div><b>Pattern A / Pattern B</b>A: the AI writes code and it runs in a sandbox. B: the AI uses a real browser in a sandbox.</div>
+    <div><b>Human in the loop</b>A person must approve before the agent takes the final action (Submit).</div>
+  </div>
+
+  <h2 id="qa">Judge questions<small>Tap a question to see a short, honest answer. If you do not know: &ldquo;We have not built that yet. Here is how we would.&rdquo;</small></h2>
+  <details><summary>Couldn&rsquo;t I just upload the photo to ChatGPT?</summary><p>ChatGPT gives you a paragraph about the damage. Sheltr does the work: it builds the 3D evidence, runs real code to measure, makes a fingerprinted PDF, opens scam links safely and fills the aid form in a real browser. The hard part is letting AI act safely, and that is what we built.</p></details>
+  <details><summary>Is this live or a recording?</summary><p>Live. Upload any room photo at /start and it runs in about 1 to 3 minutes. The live status panel on this page reads from the running server.</p></details>
+  <details><summary>What is a sandbox here? Is it Docker?</summary><p>No, stronger. Each job gets its own tiny virtual machine with its own operating system. It is made for one job and deleted right after. You can watch them appear and disappear on the case page.</p></details>
+  <details><summary>Where are the secret keys?</summary><p>Only on the main server (VM 1). They never go into a sandbox, the browser or a log.</p></details>
+  <details><summary>What did the fake scam site try, and what happened?</summary><p>It tried to force a malware download and to send the survivor&rsquo;s details to an outside server. The download was caught inside the sandbox and deleted with it. The data theft was blocked, because the sandbox can only reach our private network.</p></details>
+  <details><summary>Can the AI submit something wrong?</summary><p>No. It stops before Submit. The survivor sees every field the AI typed, can change any of them, and must press Approve. Then a fresh sandbox submits.</p></details>
+  <details><summary>How do you get 3D from one photo?</summary><p>An AI depth model guesses how far away every pixel is, in metres. We turn that into a 3D room. Then AI-written code measures the damaged areas on it.</p></details>
+  <details><summary>How accurate are the numbers?</summary><p>They are estimates, plus or minus 25%, and the page says so. It is evidence to support a claim, not a professional survey.</p></details>
+  <details><summary>Does it file real government claims?</summary><p>No. It only uses our own fake aid portal. Filing to real programs would come later, with their permission.</p></details>
+  <details><summary>Is the data real?</summary><p>Yes. The photos are real FEMA flood photos (public domain). One sample case uses an AI-generated image and is clearly labelled.</p></details>
+  <details><summary>Why only Vultr?</summary><p>The track requires it, and it is also safer: the AI model, the servers and the sandboxes all sit in one private Vultr network, so photos and keys never go to another company.</p></details>
+  <details><summary>What would you build next?</summary><p>A 3D scan from a short phone video, user login, and limits on how much each user can run.</p></details>
+
 
   <h2 id="live-h">Live status<small>Read from this server's /api/health when the page loads, not hard-coded.</small></h2>
   <div id="live"><div class="stat"><span>Status</span><b>loading…</b></div></div>
