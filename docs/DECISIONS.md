@@ -19,6 +19,9 @@ Choices already made, with the reason. To change one, ask your human first, then
 | D13 | Budget: under **$30** of the $200 credit; delete unused servers | Vultr bills stopped servers |
 | D14 | Repo: **techadnank9/shltr** is the main repository | Team decision |
 | D15 | Every change goes through a **clean PR** on a `<owner>/<topic>` branch; no direct pushes to `main` | Two agents work on the repo at once |
+| D16 | Servers: VM 1 `vc2-2c-4gb`, VM 2 `vx1-g-4c-16g-240s`, Ubuntu 24.04, Atlanta, about $0.18/hour together | Cheapest fit; the `-240s` VX1 plan includes its disk, while plain VX1 plans list 1 GB |
+| D17 | **VM 2 has no inbound ports on the internet**, not even SSH. It is reached only from VM 1 over the VPC (SSH uses VM 1 as a jump host), enforced by VM 2's own `ufw` as well as Vultr's firewall group | Smoke testing showed the Vultr firewall group did not filter the VX1 server and Ubuntu's default `ufw` allowed SSH from anywhere. Two layers, verified from outside by `smoke_test.py` |
+| D18 | Sandboxes use Microsandbox's built-in controls: `--no-net` (photo sandbox), `--net-rule allow@<target>` allowlist (browser sandbox), `--max-duration`, `--cpus`, `--memory` | Built into the tool Vultr recommends, so we don't write our own network filtering. T4 and T5 prove they work |
 
 ## Open questions
 

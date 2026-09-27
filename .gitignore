@@ -26,3 +26,7 @@ cases/
 test-photos/
 out/
 *.glb.tmp
+
+# Part 3 state (server IDs and IPs) and local logs
+infra/state.json
+*.log
