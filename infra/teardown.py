@@ -70,8 +70,13 @@ def main() -> None:
     for rid, name in found["ssh_keys"]:
         delete(token, f"ssh-keys/{rid}")
         print(f"  deleted ssh key {name}")
-    if STATE_PATH.exists():
-        STATE_PATH.unlink()
+    # Forget the old servers locally too. A rebuilt server can get the same IP with a new
+    # host key, and a stale known_hosts entry would then block SSH with a spoofing warning.
+    # The SSH key pair itself is kept so the next provision.py run can reuse it.
+    keys_dir = REPO_ROOT / "infra" / "keys"
+    for path in (STATE_PATH, keys_dir / "known_hosts", keys_dir / "known_hosts.old", keys_dir / "ssh_config"):
+        if path.exists():
+            path.unlink()
     print("\nDone. Billing stops for deleted servers. Check the dashboard to confirm nothing is left.")
 
 
