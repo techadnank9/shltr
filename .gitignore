@@ -1,0 +1,26 @@
+# Secrets: API keys live only in .env on your machine and on VM 1
+.env
+.env.*
+!.env.example
+*.pem
+id_*
+infra/keys/
+
+# Event material we don't own or that holds private info
+Hackathon.txt
+Blast Radius Zero.pdf
+
+# Local tool settings
+.claude/settings.local.json
+
+# Build output and dependencies
+node_modules/
+dist/
+build/
+__pycache__/
+*.pyc
+.venv/
+
+# Generated case data
+cases/
+*.glb.tmp

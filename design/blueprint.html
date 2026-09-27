@@ -1,0 +1,384 @@
+<title>After the Storm Blueprint</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  :root {
+    --bg: #F2F5F5;
+    --panel: #FFFFFF;
+    --text: #16232A;
+    --muted: #55686F;
+    --line: #D3DCDE;
+    --accent: #A8620B;
+    --accent-soft: #FBEBD3;
+    --red: #B8343A;
+    --water: #1B77A6;
+    --ok: #217A4E;
+    --code-bg: #EAF0F1;
+    --display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+    --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #0B1216; --panel: #111C21; --text: #E6ECEE; --muted: #93A6AD; --line: #24363E;
+      --accent: #F2A33A; --accent-soft: #2B2112; --red: #F0666B; --water: #5CB8E4; --ok: #5BD197; --code-bg: #0E181D;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #0B1216; --panel: #111C21; --text: #E6ECEE; --muted: #93A6AD; --line: #24363E;
+    --accent: #F2A33A; --accent-soft: #2B2112; --red: #F0666B; --water: #5CB8E4; --ok: #5BD197; --code-bg: #0E181D;
+  }
+
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; line-height: 1.6; padding-inline: 16px; padding-block: 0 64px; }
+  .wrap { max-width: 1000px; margin: 0 auto; display: flex; flex-direction: column; gap: 56px; }
+  header.top { padding-top: 40px; display: flex; flex-direction: column; gap: 14px; }
+  .eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
+  h1 { margin: 0; font-family: var(--display); font-weight: 800; font-size: clamp(44px, 8vw, 76px); line-height: 0.92; text-transform: uppercase; letter-spacing: 0.01em; text-wrap: balance; }
+  .lede { margin: 0; font-size: 18px; max-width: 64ch; color: var(--text); }
+  .lede b { color: var(--accent); font-weight: 600; }
+
+  nav.toc { display: flex; flex-wrap: wrap; gap: 6px; }
+  nav.toc a { font-family: var(--mono); font-size: 12px; color: var(--text); text-decoration: none; border: 1px solid var(--line); background: var(--panel); padding: 6px 10px; border-radius: 4px; }
+  nav.toc a:hover, nav.toc a:focus-visible { border-color: var(--accent); outline: none; }
+
+  section { display: flex; flex-direction: column; gap: 16px; scroll-margin-top: 16px; }
+  h2 { margin: 0; font-family: var(--display); font-weight: 700; font-size: 34px; line-height: 1; text-transform: uppercase; letter-spacing: 0.02em; display: flex; gap: 14px; align-items: baseline; text-wrap: balance; }
+  h2 .n { font-family: var(--mono); font-size: 14px; color: var(--accent); font-weight: 500; letter-spacing: 0; }
+  h3 { margin: 0; font-size: 16px; font-weight: 600; }
+  p { margin: 0; max-width: 68ch; }
+  .muted { color: var(--muted); }
+
+  figure.diagram { margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 20px 16px; overflow-x: auto; }
+  figure.diagram pre.mermaid { margin: 0; background: transparent; display: flex; justify-content: center; min-width: 560px; }
+  figure.diagram figcaption { margin-top: 12px; font-size: 13px; color: var(--muted); }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+  table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: 14px; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-family: var(--mono); font-size: 11.5px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); background: var(--code-bg); }
+  tr:last-child td { border-bottom: 0; }
+  td:first-child { font-weight: 600; }
+  code { font-family: var(--mono); font-size: 0.88em; background: var(--code-bg); padding: 1px 5px; border-radius: 3px; }
+  pre.code { margin: 0; font-family: var(--mono); font-size: 13px; line-height: 1.55; background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; overflow-x: auto; }
+
+  ol.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; counter-reset: s; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+  ol.steps > li { counter-increment: s; display: grid; grid-template-columns: 44px 1fr; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+  ol.steps > li:last-child { border-bottom: 0; }
+  ol.steps > li::before { content: counter(s, decimal-leading-zero); font-family: var(--mono); font-size: 13px; color: var(--accent); padding-top: 2px; }
+  ol.steps li div { display: flex; flex-direction: column; gap: 4px; }
+  ol.steps li small { color: var(--muted); font-size: 13.5px; }
+
+  .callout { border: 1px solid var(--accent); background: var(--accent-soft); border-radius: 8px; padding: 14px 18px; display: flex; flex-direction: column; gap: 6px; }
+  .callout strong { font-family: var(--mono); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); }
+  .tag { display: inline-block; font-family: var(--mono); font-size: 11px; font-weight: 400; padding: 1px 7px; border-radius: 3px; border: 1px solid currentColor; vertical-align: 2px; }
+  .tag.must { color: var(--red); }
+  .tag.opt { color: var(--muted); }
+  dl.gloss { margin: 0; display: grid; grid-template-columns: minmax(130px, 200px) 1fr; gap: 10px 20px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 18px; }
+  dl.gloss dt { font-weight: 600; }
+  dl.gloss dd { margin: 0; }
+  @media (max-width: 560px) { dl.gloss { grid-template-columns: 1fr; gap: 2px 0; } dl.gloss dd { margin-bottom: 10px; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <span class="eyebrow">Blast Radius Zero · Vultr Agent Arena</span>
+    <h1>After the Storm Blueprint</h1>
+    <p class="lede">A flood survivor uploads photos of a damaged room. An agent on <b>Vultr</b> turns them into a 3D room, finds and prices the damage, and fills in the aid application. Every risky step runs inside a <b>throwaway sandbox</b>, and nothing is submitted until the survivor approves it.</p>
+    <nav class="toc" aria-label="Sections">
+      <a href="#big-picture">Big picture</a>
+      <a href="#user-flow">What the survivor does</a>
+      <a href="#under-the-hood">Under the hood</a>
+      <a href="#sandbox">Inside a sandbox</a>
+      <a href="#code-loop">Code loop</a>
+      <a href="#browser-loop">Browser loop</a>
+      <a href="#containment">Containment</a>
+      <a href="#vultr">Vultr setup</a>
+      <a href="#stack">Tech stack</a>
+      <a href="#build">Build order</a>
+      <a href="#words">Glossary</a>
+    </nav>
+  </header>
+
+  <section id="big-picture">
+    <h2><span class="n">01</span>The big picture</h2>
+    <p>There are four parts. The <b>web app</b> is what people see. <b>VM 1</b> is the brain: it plans, keeps the case, and holds every secret. <b>VM 2</b> is the blast zone: every piece of code and every browser run happens there, in a sandbox that gets destroyed afterwards. <b>Vultr Serverless Inference</b> is the model that thinks.</p>
+    <figure class="diagram">
+<pre class="mermaid">
+flowchart LR
+  U["Survivor's phone or laptop<br/>3D web app"] -- "HTTPS + live updates" --> CP
+  subgraph VM1["VM 1 · Control plane · Vultr Cloud Compute"]
+    CP["FastAPI server<br/>planner agent · case database<br/>API keys live here only"]
+    P["Mock aid portal<br/>demo form website"]
+  end
+  CP -- "ask the model" --> AI["Vultr Serverless Inference<br/>glm-5.3 or qwen3.8-27b"]
+  CP -- "start a task<br/>private network" --> R
+  subgraph VM2["VM 2 · Sandbox host · Vultr VX1 with KVM"]
+    R["Runner service<br/>creates, watches, destroys"]
+    S1["Photo sandbox<br/>Microsandbox microVM<br/>depth model + agent code"]
+    S2["Browser sandbox<br/>Playwright in a gVisor container"]
+    R --> S1
+    R --> S2
+  end
+  S2 -- "fills in the form" --> P
+  R -- "files, logs, screenshots" --> CP
+</pre>
+      <figcaption>Only VM 1 is reachable from the internet. VM 2 has no public ports; it only takes orders from VM 1 over Vultr's private network.</figcaption>
+    </figure>
+  </section>
+
+  <section id="user-flow">
+    <h2><span class="n">02</span>What the survivor does</h2>
+    <p>This is the product from the user's side. It is also the order of the live demo.</p>
+    <figure class="diagram">
+<pre class="mermaid">
+flowchart TD
+  A["1 · Open the app and start a case"] --> B["2 · Upload photos or a 10-second video of the room"]
+  B --> C["3 · Watch the photo turn into a 3D room"]
+  C --> D["4 · See damage marked in 3D<br/>with measurements and a cost estimate"]
+  D --> E{"5 · Was anything in the upload dangerous?"}
+  E -- "Yes" --> F["Sandbox absorbs it<br/>screen shows CONTAINED<br/>case carries on"]
+  E -- "No" --> G
+  F --> G["6 · Agent fills in the aid form in a sandboxed browser<br/>screenshot at every step"]
+  G --> H{"7 · Survivor reviews. Approve?"}
+  H -- "Approve" --> I["Submitted · receipt saved · sandbox destroyed"]
+  H -- "Not yet" --> J["Draft kept · nothing submitted"]
+  I --> K["8 · Case file to keep or share:<br/>3D room, evidence, receipt"]
+</pre>
+    </figure>
+  </section>
+
+  <section id="under-the-hood">
+    <h2><span class="n">03</span>Under the hood, step by step</h2>
+    <p>The same journey as messages between the parts. Read it top to bottom. The model never runs anything itself; it only suggests. VM 1 decides, and VM 2 executes in a sandbox.</p>
+    <figure class="diagram">
+<pre class="mermaid">
+sequenceDiagram
+  autonumber
+  actor S as Survivor
+  participant UI as Web app
+  participant CP as Control plane VM 1
+  participant AI as Vultr Inference
+  participant RN as Runner VM 2
+  participant SB as Photo sandbox
+  participant BR as Browser sandbox
+  S->>UI: Upload photos
+  UI->>CP: Create case with photos
+  CP->>AI: Plan this case, here are the tools
+  AI-->>CP: Plan: depth, measure, claim
+  CP->>RN: Start photo sandbox: 2 CPU, 2 GB, 120 s, no network
+  RN->>SB: Create microVM and copy photos in
+  SB-->>RN: Depth map and room.glb
+  RN-->>CP: Files and logs
+  CP-->>UI: Live update: 3D room ready
+  CP->>AI: Look at the photos and depth. What is damaged?
+  AI-->>CP: Damage list and Python to measure it
+  CP->>RN: Run the Python in the sandbox
+  SB-->>RN: Error text
+  RN-->>CP: Error text
+  CP->>AI: Here is the error, fix the code
+  AI-->>CP: Fixed code
+  CP->>RN: Run again
+  SB-->>RN: Areas and costs, exit 0
+  RN->>SB: Destroy
+  CP-->>UI: Live update: markers and total
+  CP->>RN: Start browser sandbox, portal only
+  loop Each form step
+    BR-->>CP: Screenshot
+    CP->>AI: Does this screenshot look right?
+    AI-->>CP: Yes, do the next step
+  end
+  CP-->>UI: Waiting for approval
+  S->>UI: Approve
+  UI->>CP: Approve case
+  CP->>RN: Click submit, then destroy
+  CP-->>UI: Receipt and teardown proof
+</pre>
+      <figcaption>Steps 12 to 18 are the brief's Pattern A retry loop. The loop near the end is Pattern B with a vision check on every screenshot.</figcaption>
+    </figure>
+  </section>
+
+  <section id="sandbox">
+    <h2><span class="n">04</span>Inside a sandbox</h2>
+    <p>Every task gets a brand-new sandbox, and every sandbox ends the same way: destroyed. Whatever happens inside, good or bad, the outputs are copied out and the sandbox is thrown away.</p>
+    <figure class="diagram">
+<pre class="mermaid">
+stateDiagram-v2
+  [*] --> Requested
+  Requested --> Created: runner creates it with limits
+  Created --> Loaded: photos copied in
+  Loaded --> Running: command starts
+  Running --> Finished: exit code 0
+  Running --> Failed: error, timeout or memory cap
+  Running --> Blocked: unsafe action hits the wall
+  Finished --> Collected: outputs copied out
+  Failed --> Collected
+  Blocked --> Collected
+  Collected --> Destroyed: msb remove
+  Destroyed --> [*]
+</pre>
+    </figure>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Rule</th><th>Photo sandbox</th><th>Browser sandbox</th></tr></thead>
+        <tbody>
+          <tr><td>Isolation</td><td>Microsandbox microVM with its own kernel</td><td>Docker container on the gVisor runtime</td></tr>
+          <tr><td>CPU and memory</td><td>2 CPU, 2 GB</td><td>1 CPU, 1 GB</td></tr>
+          <tr><td>Time limit</td><td>120 seconds, then killed</td><td>180 seconds, then killed</td></tr>
+          <tr><td>Network</td><td>Off</td><td>Aid portal only, everything else blocked</td></tr>
+          <tr><td>Disk</td><td>Read-only system, one writable output folder</td><td>Read-only system, one writable output folder</td></tr>
+          <tr><td>Secrets inside</td><td>None</td><td>None. A fake test identity only</td></tr>
+          <tr><td>After the task</td><td>Destroyed</td><td>Destroyed</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="muted">To check on day one: Vultr's guide says Microsandbox sandboxes can reach the public internet by default. Turn that off for the photo sandbox before the demo.</p>
+  </section>
+
+  <section id="code-loop">
+    <h2><span class="n">05</span>The code loop (Pattern A)</h2>
+    <p>The model writes real code, the sandbox runs it, and errors go back to the model. This retry loop is shown live on screen, because the brief asks for it.</p>
+    <figure class="diagram">
+<pre class="mermaid">
+flowchart TD
+  A["Model writes Python<br/>to measure the damage"] --> B["Run it in the photo sandbox"]
+  B --> C{"Did it work?"}
+  C -- "Yes, exit 0" --> D["Real output:<br/>areas, costs, chart"]
+  C -- "No, error" --> E["Send the error text back to the model"]
+  E --> F{"Tried 3 times already?"}
+  F -- "No" --> A
+  F -- "Yes" --> G["Stop and show the error to the survivor"]
+  D --> H["Model explains the result in plain language"]
+</pre>
+    </figure>
+  </section>
+
+  <section id="browser-loop">
+    <h2><span class="n">06</span>The browser loop (Pattern B)</h2>
+    <p>A real browser inside a sandbox fills in the form one step at a time. After every step a vision model checks the screenshot. The final submit always waits for a person.</p>
+    <figure class="diagram">
+<pre class="mermaid">
+flowchart TD
+  A["Goal: file the aid application"] --> B["Model plans the form steps"]
+  B --> C["Playwright does one step:<br/>open, click, type"]
+  C --> D["Take a screenshot"]
+  D --> E{"Vision model: does the page<br/>show what we expected?"}
+  E -- "No" --> F["Retry or re-plan this step"]
+  F --> C
+  E -- "Yes" --> G{"Is the next action permanent,<br/>like Submit?"}
+  G -- "No" --> C
+  G -- "Yes" --> H["Pause and ask the survivor"]
+  H -- "Approve" --> I["Click submit · save receipt · destroy sandbox"]
+  H -- "Not yet" --> J["Keep the draft · destroy sandbox"]
+</pre>
+    </figure>
+    <div class="callout">
+      <strong>Why a mock portal</strong>
+      <p>The agent must never submit to a real government website during a hackathon. You build a small multi-step aid form on VM 1 and the agent fills that in. Everything else about the browser run is real.</p>
+    </div>
+  </section>
+
+  <section id="containment">
+    <h2><span class="n">07</span>The containment moment</h2>
+    <p>The brief requires one on video. One of the uploaded photos hides a command in its metadata. When the agent's code reads that metadata, the command runs, and it hits three walls at once.</p>
+    <figure class="diagram">
+<pre class="mermaid">
+flowchart LR
+  A["Photo 3 hides a command<br/>in its metadata: rm -rf /"] --> B["Agent's code reads the metadata<br/>inside the photo sandbox"]
+  B --> C["The command runs"]
+  C --> D["Read-only disk:<br/>nothing deleted"]
+  C --> E["No network:<br/>cannot phone home"]
+  C --> F["Own kernel:<br/>host never touched"]
+  D --> G["Runner logs it<br/>screen shows CONTAINED"]
+  E --> G
+  F --> G
+  G --> H["Sandbox destroyed<br/>next task starts clean"]
+</pre>
+      <figcaption>Backup containment moments: an infinite loop killed by the 120-second limit, and a hostile page on the portal that tries to download a file.</figcaption>
+    </figure>
+  </section>
+
+  <section id="vultr">
+    <h2><span class="n">08</span>What you set up on Vultr</h2>
+    <p>Do these in order. Pick one region for everything. The inference models are listed in Atlanta, so an Atlanta region keeps model calls fast.</p>
+    <ol class="steps">
+      <li><div><h3>Redeem the $200 credit <span class="tag must">required</span></h3><small>Use the coupon from the organisers' email. Never post the code anywhere.</small></div></li>
+      <li><div><h3>Create a VPC (private network) <span class="tag must">required</span></h3><small>Both VMs join it. This is how VM 1 talks to VM 2 without VM 2 having public ports.</small></div></li>
+      <li><div><h3>VM 1 · Control plane <span class="tag must">required</span></h3><small>Cloud Compute, Ubuntu 24.04, 2 vCPU and 4 GB. Attach the VPC. Firewall: allow 443 and 80 from anywhere, 22 from your IP only.</small></div></li>
+      <li><div><h3>VM 2 · Sandbox host <span class="tag must">required</span></h3><small>VX1 (it exposes KVM, which microVMs need), Ubuntu 24.04, 4 vCPU and 8 to 16 GB for the depth model. Attach the VPC. Firewall: no public ports except 22 from your IP. The runner listens on the VPC address only.</small></div></li>
+      <li><div><h3>Serverless Inference key <span class="tag must">required</span></h3><small>Turn on Serverless Inference and create an API key. Put it in VM 1's environment only. Test one chat call and one image call.</small></div></li>
+      <li><div><h3>HTTPS address <span class="tag must">required</span></h3><small>Caddy on VM 1 gets a free certificate automatically. With no domain, a name like <code>1-2-3-4.sslip.io</code> (your VM 1 IP with dashes) works.</small></div></li>
+      <li><div><h3>Vultr API key <span class="tag opt">optional</span></h3><small>Only for the throwaway-instance extra: VM 1 creates a fresh VM for the browser task and deletes it afterwards. Restrict the key to VM 1's IP.</small></div></li>
+      <li><div><h3>NetBird <span class="tag opt">optional bonus</span></h3><small>Serve the app through NetBird so VM 1 needs no open ports either. Only if time allows.</small></div></li>
+    </ol>
+    <p>First commands on VM 2, from Vultr's sandboxing guide:</p>
+<pre class="code">curl -fsSL https://install.microsandbox.dev | sh
+sudo usermod -aG kvm $USER &amp;&amp; newgrp kvm
+msb doctor
+msb create --name test01 --cpus 1 --memory 256M debian
+msb exec test01 -- uname -a
+msb stop test01 &amp;&amp; msb remove test01</pre>
+    <p>Model call from VM 1 (the API is OpenAI-compatible):</p>
+<pre class="code">export OPENAI_BASE_URL=https://api.vultrinference.com/v1
+export OPENAI_API_KEY=$VULTR_INFERENCE_API_KEY
+# model: glm-5.3 (text + images + tool calling). Check the live list first:
+curl https://api.vultrinference.com/v1/models</pre>
+    <div class="callout">
+      <strong>Where secrets live</strong>
+      <p>The inference key and the Vultr API key sit in VM 1's environment and nowhere else: not in a sandbox, not in the browser, not in the GitHub repo. The venue Wi-Fi password in <code>Hackathon.txt</code> stays out of the repo too.</p>
+    </div>
+  </section>
+
+  <section id="stack">
+    <h2><span class="n">09</span>Tech stack</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Part</th><th>What we use</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr><td>Web app</td><td>React, three.js (React Three Fiber), built with Vite</td><td>The cinematic 3D room from the mockup</td></tr>
+          <tr><td>Live updates</td><td>WebSocket from VM 1</td><td>Steps, logs and screenshots appear as they happen</td></tr>
+          <tr><td>Control plane</td><td>Python FastAPI, SQLite, OpenAI Python SDK pointed at Vultr</td><td>Fast to write, one language with the sandbox code</td></tr>
+          <tr><td>Model</td><td><code>glm-5.3</code>, fallback <code>qwen3.8-27b</code></td><td>Both read images and call tools. Kimi-K2.6 from the slides is not in today's list</td></tr>
+          <tr><td>Photo sandbox</td><td>Microsandbox, Python image with Depth Anything V2 (metric, indoor), numpy, trimesh</td><td>Vultr's own recommended sandbox. The depth model runs on CPU in seconds</td></tr>
+          <tr><td>Browser sandbox</td><td>Official Playwright image in Docker with <code>--runtime=runsc</code></td><td>The brief recommends Playwright in Docker</td></tr>
+          <tr><td>Mock aid portal</td><td>Small multi-step HTML form on VM 1</td><td>Safe, legal target for the browser agent</td></tr>
+          <tr><td>HTTPS</td><td>Caddy</td><td>Automatic certificates, one config line</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="build">
+    <h2><span class="n">10</span>Build order</h2>
+    <p>Riskiest first. If time runs out, everything built so far still demos.</p>
+    <ol class="steps">
+      <li><div><h3>Vultr setup and a sandbox that runs</h3><small>Steps 1 to 5 of the Vultr list. Done when <code>msb exec</code> prints <code>uname</code> from inside a microVM. About 45 minutes.</small></div></li>
+      <li><div><h3>Depth model in the sandbox</h3><small>One real photo in, <code>room.glb</code> out. This is what makes the 3D real, so it goes first. About 60 minutes.</small></div></li>
+      <li><div><h3>Runner service on VM 2</h3><small>Create with limits, stream logs, copy outputs, destroy. About 45 minutes.</small></div></li>
+      <li><div><h3>Control plane on VM 1</h3><small>Case API, planner with tools (<code>run_code</code>, <code>run_browser</code>, <code>ask_approval</code>), retry loop, WebSocket. About 90 minutes.</small></div></li>
+      <li><div><h3>Browser sandbox and mock portal</h3><small>Playwright fills the form, vision check per screenshot, approval gate. About 60 minutes.</small></div></li>
+      <li><div><h3>Wire the 3D UI to real data</h3><small>Load the real <code>room.glb</code>, real markers and real log events into the mockup scene. About 60 minutes.</small></div></li>
+      <li><div><h3>Containment demo and deliverables</h3><small>Poisoned photo, README with these diagrams, public URL, one-minute video, submit. About 45 minutes.</small></div></li>
+    </ol>
+    <p class="muted">If you are short on time: run sandboxes on VM 1 instead of a second VM, use a pre-made <code>room.glb</code> instead of the live depth model, and skip NetBird. Keep the code loop, the browser loop and the containment moment real.</p>
+  </section>
+
+  <section id="words">
+    <h2><span class="n">11</span>Words used here</h2>
+    <dl class="gloss">
+      <dt>Control plane</dt><dd>The server that plans and gives orders. It never runs risky code itself.</dd>
+      <dt>Sandbox</dt><dd>A sealed box where code runs. If the code is dangerous, only the box is harmed, and the box is thrown away.</dd>
+      <dt>microVM</dt><dd>A tiny virtual machine with its own kernel. The strongest kind of sandbox on Vultr's list.</dd>
+      <dt>gVisor</dt><dd>A layer that makes a normal Docker container much harder to break out of.</dd>
+      <dt>Microsandbox</dt><dd>The open-source tool Vultr's guide uses to create and destroy microVMs with one command.</dd>
+      <dt>Depth model</dt><dd>An AI model that estimates how far away every pixel in a photo is. That turns a flat photo into 3D.</dd>
+      <dt>Playwright</dt><dd>A tool that drives a real web browser from code: open pages, click, type, take screenshots.</dd>
+      <dt>Vision model</dt><dd>A language model that can also look at images, used here to read the damage and check screenshots.</dd>
+      <dt>WebSocket</dt><dd>A connection that stays open so the server can push live updates to the web app.</dd>
+      <dt>VPC</dt><dd>Vultr's private network between your VMs. Traffic on it never touches the public internet.</dd>
+      <dt>Pattern A / B</dt><dd>The brief's two required ways of working: A runs code in a sandbox, B drives a browser in a sandbox. We do both.</dd>
+    </dl>
+  </section>
+</div>
