@@ -125,9 +125,10 @@ async def run_job(job_id: str, kind: str, size: int, in_dir: Path, out_dir: Path
         if code == 0 and stats_path.exists():
             stats = json.loads(stats_path.read_text())
             base = f"/jobs/{job_id}/files"
+            extra = {"photo_url": f"{base}/photo.jpg"} if (out_dir / "photo.jpg").exists() else {}
             yield event("depth.ready", job_id, glb_url=f"{base}/room.glb", depth_url=f"{base}/depth.png",
                         vertices=stats.get("vertices"), median_depth_m=stats.get("median_depth_m"),
-                        source_kind=stats.get("source_kind", kind), seconds=stats.get("seconds"))
+                        source_kind=stats.get("source_kind", kind), seconds=stats.get("seconds"), **extra)
             frames_path = out_dir / "frames.json"
             if frames_path.exists():
                 meta = json.loads(frames_path.read_text())
@@ -136,6 +137,78 @@ async def run_job(job_id: str, kind: str, size: int, in_dir: Path, out_dir: Path
         else:
             reason = "time limit reached, sandbox killed" if code in (-9, 137) else f"sandbox exited with code {code}"
             yield event("case.error", job_id, sandbox_id=name, message=f"Reconstruction failed: {reason}")
+        yield event("sandbox.destroyed", job_id, sandbox_id=name, lifetime_s=round(time.time() - started, 1), exit_code=code)
+
+
+CODE_LIMITS = {"cpus": 2, "memory_mb": 1024, "timeout_s": 60, "network": "none"}
+GEOM = Path(__file__).with_name("geom.py")
+
+
+@app.post("/jobs/code", dependencies=[Depends(authorised)])
+async def run_code(code: str = Form(...), from_job: str = Form(default=""), inputs: str = Form(default="{}")) -> StreamingResponse:
+    """Pattern A: run model-written Python in a fresh microVM. The room from an earlier
+    reconstruct job (room.glb, stats.json) and geom.py are copied into /in; the code may
+    write /out/result.json. Returns events ending in code.result and sandbox.destroyed."""
+    if len(code) > 100_000 or len(inputs) > 1_000_000:
+        raise HTTPException(status_code=413, detail="code or inputs too large")
+    json.loads(inputs)  # must be valid JSON
+    job_id = secrets.token_hex(6)
+    in_dir, out_dir = JOBS / job_id / "in", JOBS / job_id / "out"
+    in_dir.mkdir(parents=True)
+    out_dir.mkdir(parents=True)
+    if from_job:
+        if not JOB_ID.match(from_job):
+            raise HTTPException(status_code=400, detail="bad from_job")
+        for name in ("room.glb", "stats.json"):
+            src = JOBS / from_job / "out" / name
+            if src.is_file():
+                shutil.copyfile(src, in_dir / name)
+    shutil.copyfile(GEOM, in_dir / "geom.py")
+    (in_dir / "main.py").write_text(code)
+    (in_dir / "inputs.json").write_text(inputs)
+    for p in (in_dir, out_dir, *in_dir.iterdir()):
+        os.chown(p, SANDBOX_UID, SANDBOX_UID)
+    return StreamingResponse(run_code_job(job_id, in_dir, out_dir), media_type="application/x-ndjson")
+
+
+async def run_code_job(job_id: str, in_dir: Path, out_dir: Path):
+    name = f"sbx-{job_id}"
+    async with slots:
+        started = time.time()
+        yield event("sandbox.started", job_id, sandbox_id=name, kind="code", limits=CODE_LIMITS)
+        cmd = [
+            MSB, "run", "--name", name, "--no-net",
+            "--cpus", str(CODE_LIMITS["cpus"]), "--memory", f"{CODE_LIMITS['memory_mb']}M",
+            "--max-duration", f"{CODE_LIMITS['timeout_s']}s", "-e", "PYTHONPATH=/in", "-w", "/in",
+            "-v", f"{in_dir}:/in:ro", "-v", f"{out_dir}:/out:uid={SANDBOX_UID},gid={SANDBOX_UID}",
+            "--entrypoint", "python", IMAGE, "--", "/in/main.py",
+        ]
+        proc = await asyncio.create_subprocess_exec(*cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT)
+        lines: list[str] = []
+        try:
+            async for raw in proc.stdout:
+                line = raw.decode(errors="replace").rstrip()
+                if line:
+                    lines.append(line)
+                    yield event("log.line", job_id, sandbox_id=name, stream="stdout", text=line[:500])
+            code = await asyncio.wait_for(proc.wait(), timeout=CODE_LIMITS["timeout_s"] + 30)
+        except asyncio.TimeoutError:
+            proc.kill()
+            code = -9
+        finally:
+            await msb("stop", name)
+            await msb("remove", "-f", name)
+        result = None
+        result_path = out_dir / "result.json"
+        if result_path.is_file() and result_path.stat().st_size < 1_000_000:
+            try:
+                result = json.loads(result_path.read_text())
+            except json.JSONDecodeError as err:
+                lines.append(f"result.json is not valid JSON: {err}")
+                code = code or 1
+        if code in (-9, 137):
+            lines.append(f"Killed: the {CODE_LIMITS['timeout_s']} s time limit was reached.")
+        yield event("code.result", job_id, sandbox_id=name, exit_code=code, output="\n".join(lines)[-4000:], result=result)
         yield event("sandbox.destroyed", job_id, sandbox_id=name, lifetime_s=round(time.time() - started, 1), exit_code=code)
 
 
