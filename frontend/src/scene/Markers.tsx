@@ -1,10 +1,10 @@
-import { Billboard, Html } from '@react-three/drei'
+import { Billboard } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import { useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { source } from '../events/pick'
-import { useCase, usd, type Damage } from '../store'
-import { COLORS, reducedMotion } from './shared'
+import { useCase, type Damage } from '../store'
+import { COLORS, labelEls, placeLabel, reducedMotion } from './shared'
 
 /** One pulsing red marker per damage.found, at its position in room.glb metres. */
 export function Markers() {
@@ -25,11 +25,11 @@ const RED_HOT = COLORS.red.clone().multiplyScalar(2.2) // over 1, so bloom picks
 function Marker({ d }: { d: Damage }) {
   const ring = useRef<THREE.Mesh>(null)
   const group = useRef<THREE.Group>(null)
-  const label = useRef<HTMLDivElement>(null)
+  const pos = useMemo(() => new THREE.Vector3(...d.position), [d.position])
   const ringMat = useMemo(() => new THREE.MeshBasicMaterial({ color: RED_HOT, transparent: true, depthTest: false, toneMapped: false, side: THREE.DoubleSide }), [])
   const dotMat = useMemo(() => new THREE.MeshBasicMaterial({ color: RED_HOT, transparent: true, depthTest: false, toneMapped: false }), [])
 
-  useFrame(({ clock }) => {
+  useFrame(({ clock, camera, size }) => {
     const s = useCase.getState()
     const now = source.now()
     const age = now - d.t
@@ -41,7 +41,11 @@ function Marker({ d }: { d: Damage }) {
     // Labels step aside while the containment scene plays.
     const sinceThreat = s.threats.length ? now - s.threats[s.threats.length - 1].t : 99
     const hide = s.stage === 4 && sinceThreat < 4.5
-    if (label.current) label.current.style.opacity = hide ? '0' : String(k)
+    const label = labelEls.get(d.id)
+    if (label) {
+      label.style.opacity = hide ? '0' : String(k)
+      placeLabel(label, pos, camera, size.width, size.height, age >= 0)
+    }
     if (group.current) group.current.visible = age >= 0
   })
 
@@ -55,13 +59,6 @@ function Marker({ d }: { d: Damage }) {
           <circleGeometry args={[0.045, 20]} />
         </mesh>
       </Billboard>
-      <Html zIndexRange={[3, 0]} style={{ pointerEvents: 'none' }}>
-        <div ref={label} className="pin">
-          <b>{String(d.n).padStart(2, '0')}</b>
-          <span>{d.label}</span>
-          <em>{usd(d.cost)}</em>
-        </div>
-      </Html>
     </group>
   )
 }

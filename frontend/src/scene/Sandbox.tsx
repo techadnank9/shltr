@@ -1,11 +1,10 @@
-import { Html } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import { useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import { source } from '../events/pick'
 import type { ThreatKind } from '../events/types'
 import { useCase } from '../store'
-import { COLORS, ease, ramp, reducedMotion, useRoomBounds } from './shared'
+import { COLORS, ease, labelEls, placeLabel, ramp, reducedMotion, useRoomBounds } from './shared'
 
 const PAD = 0.35
 export const FLY = 0.55 // seconds for an attack to reach the glass after threat.contained
@@ -45,12 +44,12 @@ function Boundary({ box }: { box: THREE.Box3 }) {
   const group = useRef<THREE.Group>(null)
   const payloads = useRef<THREE.Mesh[]>([])
   const shocks = useRef<THREE.Mesh[]>([])
-  const tag = useRef<HTMLDivElement>(null)
+  const corner = useMemo(() => new THREE.Vector3(center.x - size.x / 2, center.y + size.y / 2, center.z + size.z / 2), [center, size])
   const vis = useRef(0)
   const from = useMemo(() => center.clone().setZ(center.z - size.z * 0.15), [center, size])
   const to = useMemo(() => new THREE.Vector3(), [])
 
-  useFrame((_, dt) => {
+  useFrame(({ camera, size: view }, dt) => {
     const s = useCase.getState()
     const now = source.now()
     const live = Object.values(s.sandboxes).filter((x) => x.t <= now && (x.destroyedAt === undefined || x.destroyedAt > now))
@@ -99,10 +98,12 @@ function Boundary({ box }: { box: THREE.Box3 }) {
       } else sh.visible = false
     }
 
-    if (tag.current) {
+    const tag = labelEls.get('sandbox')
+    if (tag) {
       const sb = live[live.length - 1]
-      tag.current.style.opacity = String(vis.current)
-      if (sb) tag.current.textContent = `${sb.id} · ${sb.kind === 'photo' ? 'microVM' : 'gVisor browser'} · network: ${sb.network}`
+      tag.style.opacity = String(vis.current)
+      placeLabel(tag, corner, camera, view.width, view.height, vis.current > 0.01)
+      if (sb) tag.textContent = `${sb.id} · ${sb.kind === 'photo' ? 'microVM' : 'gVisor browser'} · network: ${sb.network}`
     }
   })
 
@@ -117,9 +118,6 @@ function Boundary({ box }: { box: THREE.Box3 }) {
       <group ref={group} position={center}>
         <lineSegments geometry={edgesGeo} material={edgeMat} renderOrder={5} />
         <mesh geometry={geo} material={glassMat} renderOrder={4} />
-        <Html position={[-size.x / 2, size.y / 2, size.z / 2]} zIndexRange={[2, 0]} style={{ pointerEvents: 'none' }}>
-          <div ref={tag} className="sbx-tag" />
-        </Html>
       </group>
       {shapes.map((shape, i) => (
         <mesh key={i} ref={(m) => { if (m) payloads.current[i] = m }} material={payloadMat} visible={false} renderOrder={30}>

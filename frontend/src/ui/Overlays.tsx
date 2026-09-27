@@ -1,7 +1,8 @@
 import { source } from '../events/pick'
 import type { ThreatKind } from '../events/types'
 import { FLY } from '../scene/Sandbox'
-import { STAGES, useCase } from '../store'
+import { labelEls } from '../scene/shared'
+import { STAGES, useCase, usd } from '../store'
 import { useNow } from './hooks'
 
 const CAPTIONS: Record<string, [string, string]> = {
@@ -36,6 +37,18 @@ export function Overlays() {
 
   return (
     <>
+      <div className="labels">
+        {s.damages.map((d) => (
+          <div key={d.id} className="pin" ref={(el) => { if (el) labelEls.set(d.id, el); else labelEls.delete(d.id) }}>
+            <div>
+              <b>{String(d.n).padStart(2, '0')}</b>
+              <span>{d.label}</span>
+              <em>{usd(d.cost)}</em>
+            </div>
+          </div>
+        ))}
+        <div className="sbx-tag" ref={(el) => { if (el) labelEls.set('sandbox', el); else labelEls.delete('sandbox') }} />
+      </div>
       <div className={`alarmwash${alarmOn ? ' on' : ''}`} />
       <figure className={`photoframe${photoOn ? ' on' : ''}${scanning ? ' scanning' : ''}`}>
         {s.photo && <img src={s.photo} alt="The survivor's photo of the room" />}
