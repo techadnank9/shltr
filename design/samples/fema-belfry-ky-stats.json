@@ -1,0 +1,32 @@
+{
+  "width": 640,
+  "height": 427,
+  "median_depth_m": 4.406,
+  "min_depth_m": 1.593,
+  "max_depth_m": 6.537,
+  "vertices": 268282,
+  "faces": 531863,
+  "focal_px": 462.3,
+  "focal_from_exif": false,
+  "photo": "belfry-ky.jpg",
+  "model": "depth-anything/Depth-Anything-V2-Metric-Indoor-Large-hf",
+  "model_input": [
+    770,
+    518
+  ],
+  "mesh_grid": [
+    640,
+    427
+  ],
+  "texture": "jpeg",
+  "texture_size": [
+    1920,
+    1282
+  ],
+  "vertex_colors": true,
+  "glb_bytes": 12177760,
+  "model_seconds": 20.34,
+  "seconds": 20.64,
+  "source_kind": "photo",
+  "photo_file": "photo.jpg"
+}

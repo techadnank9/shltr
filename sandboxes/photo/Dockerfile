@@ -16,7 +16,9 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends ffmpeg \
  && rm -rf /var/lib/apt/lists/*
 
-ARG MODEL_ID=depth-anything/Depth-Anything-V2-Metric-Indoor-Small-hf
+# Large (335M params) is the default: much sharper room edges than Small, about 20 s per
+# photo on 4 CPUs. Build with --build-arg MODEL_ID=...-Small-hf for a faster, 575 MB image.
+ARG MODEL_ID=depth-anything/Depth-Anything-V2-Metric-Indoor-Large-hf
 RUN python -c "from huggingface_hub import snapshot_download; \
 snapshot_download('${MODEL_ID}', local_dir='/opt/model', allow_patterns=['*.json', '*.safetensors'])"
 
@@ -24,7 +26,8 @@ snapshot_download('${MODEL_ID}', local_dir='/opt/model', allow_patterns=['*.json
 ENV HF_HUB_OFFLINE=1 \
     TRANSFORMERS_OFFLINE=1 \
     HF_HOME=/tmp/hf \
-    MODEL_DIR=/opt/model
+    MODEL_DIR=/opt/model \
+    MODEL_ID=${MODEL_ID}
 
 COPY depth.py /app/depth.py
 COPY prepare.py /app/prepare.py
