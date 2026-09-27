@@ -244,6 +244,29 @@ async def case_page(case_id: str) -> FileResponse:
     return FileResponse(STATIC / "case.html")
 
 
+SCAN_NAME = re.compile(r"^[a-z0-9][a-z0-9-]{1,60}$")
+
+
+@app.get("/api/scans")
+async def list_scans() -> list[dict]:
+    """Published multi-view reconstructions: frontend/dist/scans/<name>.glb (+ optional <name>.json)."""
+    folder = FRONTEND / "scans"
+    out = []
+    for glb in sorted(folder.glob("*.glb")) if folder.is_dir() else []:
+        meta_path = glb.with_suffix(".json")
+        meta = json.loads(meta_path.read_text()) if meta_path.is_file() else {}
+        out.append({"name": glb.stem, "glb_url": f"/scans/{glb.name}", "bytes": glb.stat().st_size, "meta": meta})
+    return out
+
+
+@app.get("/scan/{name}")
+async def scan_page(name: str) -> FileResponse:
+    """Full-screen viewer for one real multi-view 3D reconstruction."""
+    if not SCAN_NAME.match(name):
+        raise HTTPException(status_code=404)
+    return FileResponse(STATIC / "scan.html")
+
+
 @app.get("/start")
 async def start_page() -> FileResponse:
     return FileResponse(STATIC / "start.html")
